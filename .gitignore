@@ -1,0 +1,40 @@
+# Motorola firmware archives and extracted images
+*.zip
+*.001
+*.002
+*.003
+*.img
+*.bin
+*.mbn
+*.elf
+*.dat
+*.sparsechunk.*
+PGPT
+
+# Flashing / diagnostic logs
+*.log
+flash-stock.log
+
+# Seedvault / recovered private application data
+.SeedVaultAndroidBackup/
+recovered/
+
+# Local app inventories / personal package lists
+wanted-apps*.txt
+still-to-install*.txt
+normal-install*.txt
+currently-installed-user-apps*.txt
+
+# Potentially sensitive exports
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+*.pem
+*.key
+
+# Editor / OS noise
+*~
+*.swp
+.DS_Store
+Thumbs.db
