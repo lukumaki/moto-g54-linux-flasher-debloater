@@ -263,10 +263,11 @@ adb shell cmd package install-existing PACKAGE.NAME
 
 Before removing anything, the stock package set and APK paths were captured for inspection. The decisions were then made package by package rather than by applying an internet "remove everything" list.
 
+See [`docs/stock-applications.md`](docs/stock-applications.md) for the stock/preloaded application snapshot and the KEEP / REMOVE / DISABLED decisions.
+
 See [`docs/debloat.md`](docs/debloat.md) for:
 
-- the stock package snapshot;
-- the packages actually removed;
+- the actual removal batches and commands;
 - packages left disabled;
 - packages deliberately kept;
 - verification after each batch;
