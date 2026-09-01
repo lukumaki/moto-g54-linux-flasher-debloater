@@ -1,5 +1,11 @@
 # Moto G54 5G (cancunf) Linux Stock Firmware Flasher and Debloater
 
+> ## 📢 Keep Android Open
+>
+> If you care about the freedom to unlock, modify, repair, flash custom ROMs, and continue developing for Android devices, please take a moment to visit **[Keep Android Open](https://keepandroidopen.org/en/)** and support the campaign.
+>
+> **The ability to unlock and modify our own devices is directly relevant to projects like this one. Please read, share, and act.**
+
 ![Device](https://img.shields.io/badge/device-Moto%20G54%205G%20(cancunf)-blue)
 ![Android](https://img.shields.io/badge/tested%20Android-15-green)
 ![Linux](https://img.shields.io/badge/tested%20on-Debian%2013-red)
