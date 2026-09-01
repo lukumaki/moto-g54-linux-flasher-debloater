@@ -1,81 +1,224 @@
 # Conservative debloat on Moto G54 5G (`cancunf`)
 
-This project uses **ADB package-manager removal for Android user 0** rather than modifying signed system partitions.
+This section documents the **actual debloat process performed on the restored stock ROM**, not a generic Motorola debloat list.
 
-That means commands such as:
+Test environment:
+
+```text
+Host OS: Debian 13 (Trixie)
+Device: Moto G54 5G (cancunf)
+Firmware: V1TDS35H.83-20-5-12
+Android: 15
+```
+
+The guiding rule was simple: remove promotional or genuinely unwanted applications while keeping stock stability, telephony, OTA, Settings integration, Google services and security-related Motorola components intact.
+
+## 1. Capture the stock state first
+
+Before removing anything, capture package lists so you can compare the before/after state later:
+
+```bash
+adb shell pm list packages | sort > packages-before.txt
+adb shell pm list packages -f | sort > packages-with-paths-before.txt
+adb shell pm list packages -d | sort > packages-disabled-before.txt
+adb shell pm list packages -3 | sort > packages-third-party-before.txt
+```
+
+On the tested device the full package-manager snapshot contained hundreds of Android, Google, Motorola, carrier, overlay and APEX entries. A readable application-focused version with the decisions made for this device is in:
+
+[`stock-applications.md`](stock-applications.md)
+
+## 2. Keep the phone awake during the session
+
+For a long ADB session it is convenient to prevent the display from sleeping while the phone remains powered over USB:
+
+```bash
+adb shell svc power stayon true
+```
+
+When finished:
+
+```bash
+adb shell svc power stayon false
+```
+
+This avoids repeatedly unlocking the phone while checking Settings, Play Store or application behaviour between debloat batches.
+
+## 3. Removal method
+
+This project uses Android Package Manager removal for **user 0**:
 
 ```bash
 adb shell pm uninstall --user 0 PACKAGE.NAME
 ```
 
-remove the package for the current user without deleting the APK from `/system`, `/product` or `/system_ext`.
+This is intentionally different from deleting an APK from `/system`, `/product` or `/system_ext`.
 
-For preinstalled system packages, restoration is normally possible with:
+For a preinstalled system package, the APK normally remains present in the signed system image and can usually be made available to user 0 again with:
 
 ```bash
 adb shell cmd package install-existing PACKAGE.NAME
 ```
 
-## Packages removed in the tested setup
+A factory reset also normally recreates the Android user state from the signed system image.
 
-### Google apps intentionally not used
+## 4. What does `Success` mean?
 
-```text
-com.google.android.apps.docs.editors.sheets
-com.google.android.apps.docs.editors.docs
-com.google.android.apps.docs.editors.slides
-com.google.android.apps.magazines
-com.google.android.apps.fitness
-com.google.android.apps.podcasts
-com.google.android.apps.nbu.files
-com.google.android.apps.youtube.music
-com.google.android.apps.tachyon
-com.google.android.apps.subscriptions.red
-com.google.android.apps.googleassistant
-com.google.android.apps.photos
+For a command such as:
+
+```bash
+adb shell pm uninstall --user 0 com.google.android.apps.photos
 ```
 
-### Motorola / partner preload and recommendation components
+Android Package Manager may return:
 
 ```text
-com.aura.oobe.motorola
-com.dti.motorola
-com.taboola.mip
-com.glance.lockscreenM
-com.motorola.brapps
-com.motorola.demo
-com.motorola.ccc.notification
+Success
 ```
 
-### Optional Motorola features not wanted on the tested device
+In this context `Success` means the package-manager operation for user 0 succeeded. It does **not** mean the system APK was physically erased from the phone's signed partitions.
+
+That distinction is one of the reasons this method was chosen.
+
+A failure should be inspected rather than worked around blindly. For example, during the tested session `com.amazon.appmanager` returned a package-manager failure when an uninstall was attempted. Inspection showed that the package lived under `/product/priv-app` and was already disabled for user 0, so it was simply left disabled.
+
+## 5. First removal batch
+
+The first conservative batch removed unwanted Google applications and obvious partner/recommendation components:
+
+```bash
+adb shell pm uninstall --user 0 com.google.android.apps.docs.editors.sheets
+adb shell pm uninstall --user 0 com.google.android.apps.docs.editors.docs
+adb shell pm uninstall --user 0 com.google.android.apps.docs.editors.slides
+adb shell pm uninstall --user 0 com.google.android.apps.magazines
+adb shell pm uninstall --user 0 com.google.android.apps.fitness
+adb shell pm uninstall --user 0 com.google.android.apps.podcasts
+adb shell pm uninstall --user 0 com.google.android.apps.nbu.files
+adb shell pm uninstall --user 0 com.google.android.apps.youtube.music
+adb shell pm uninstall --user 0 com.aura.oobe.motorola
+adb shell pm uninstall --user 0 com.dti.motorola
+adb shell pm uninstall --user 0 com.taboola.mip
+adb shell pm uninstall --user 0 com.glance.lockscreenM
+```
+
+All of these returned `Success` on the tested device.
+
+### Amazon App Manager
+
+An attempt was also made against:
 
 ```text
-com.motorola.gamemode
-com.motorola.timeweatherwidget
-com.motorola.livewallpaper3
-com.motorola.spaces
+com.amazon.appmanager
 ```
 
-### Meta/Facebook helper components
-
-The Facebook application itself was kept, but the Motorola-preloaded helper packages were removed:
+Inspection showed:
 
 ```text
-com.facebook.appmanager
-com.facebook.system
-com.facebook.services
+/product/priv-app/AmazonAppManager/AmazonAppManager.apk
 ```
 
-## Packages deliberately kept
+and the package was already disabled for Android user 0. It was therefore left in the signed product image and left disabled.
 
-The following packages were kept because they are either useful, integrated into Settings, or potentially tied to stock-ROM functionality:
+Useful inspection commands were:
+
+```bash
+adb shell pm path com.amazon.appmanager
+adb shell dumpsys package com.amazon.appmanager
+adb shell pm list packages -d | grep amazon
+adb shell pm list packages -e | grep amazon
+```
+
+## 6. Check incidental grep matches instead of deleting them
+
+After rebooting, broad searches can find packages whose names merely contain similar words. They should not automatically be removed.
+
+For example, the post-debloat inspection encountered:
+
+```text
+com.google.android.overlay.modules.healthfitness.forframework
+```
+
+This was recognized as a framework overlay and kept.
+
+Likewise:
+
+```text
+com.orange.aura.oobe
+```
+
+was inspected and found at:
+
+```text
+/product/priv-app/OrangeManualSelector/OrangeManualSelector.apk
+```
+
+It was already disabled for user 0 and was left that way.
+
+## 7. Google One and Google Meet
+
+After confirming the first batch behaved normally, two additional Google applications were removed:
+
+```bash
+adb shell pm uninstall --user 0 com.google.android.apps.subscriptions.red
+adb shell pm uninstall --user 0 com.google.android.apps.tachyon
+```
+
+Both returned:
+
+```text
+Success
+```
+
+## 8. Second removal batch
+
+A second pass targeted additional promotional/optional Motorola packages and Meta helper packages:
+
+```bash
+adb shell pm uninstall --user 0 com.motorola.brapps
+adb shell pm uninstall --user 0 com.motorola.demo
+adb shell pm uninstall --user 0 com.motorola.ccc.notification
+adb shell pm uninstall --user 0 com.facebook.appmanager
+adb shell pm uninstall --user 0 com.facebook.system
+adb shell pm uninstall --user 0 com.facebook.services
+adb shell pm uninstall --user 0 com.motorola.gamemode
+adb shell pm uninstall --user 0 com.motorola.timeweatherwidget
+adb shell pm uninstall --user 0 com.motorola.livewallpaper3
+adb shell pm uninstall --user 0 com.motorola.spaces
+adb shell pm uninstall --user 0 com.google.android.apps.googleassistant
+adb shell pm uninstall --user 0 com.google.android.apps.photos
+```
+
+All of these returned:
+
+```text
+Success
+```
+
+The Facebook application itself was **not** removed; only the preloaded helper packages were removed.
+
+## 9. Packages deliberately kept
+
+Some packages may look removable at first glance but were deliberately retained.
+
+Examples:
 
 ```text
 com.google.android.apps.safetyhub
 com.google.android.apps.wellbeing
 com.motorola.audiorecorder
+com.google.android.apps.docs
+com.google.android.videos
+com.google.android.apps.wallpaper
+com.google.android.youtube
+com.google.android.apps.maps
 com.motorola.help
-com.motorola.help.extlog
+```
+
+Motorola Help was inspected more deeply because it is a privileged updated system application. It integrates with Settings/help/feedback flows and has relationships with Motorola logging/support components, so it was kept rather than removed merely to reduce package count.
+
+Core Motorola packages tied to OTA, telephony, carrier configuration, security, Settings and system integration were also kept, including examples such as:
+
+```text
 com.motorola.systemserver
 com.motorola.actions
 com.motorola.aiservices
@@ -94,20 +237,7 @@ com.motorola.android.fota
 com.motorola.ccc.ota
 ```
 
-The list above is intentionally conservative. A package being removable on another Motorola model does **not** mean it should be removed on this Android version or firmware build.
-
-## Protected packages observed
-
-Two partner packages were already disabled for Android user 0 and were left in that state:
-
-```text
-com.amazon.appmanager
-com.orange.aura.oobe
-```
-
-Their APKs remain part of the signed `/product` image. Trying to force-delete those files would defeat the goal of preserving a clean stock installation.
-
-## Inspect before removing
+## 10. Inspect before removing an unfamiliar package
 
 Useful read-only commands:
 
@@ -118,32 +248,89 @@ adb shell pm list packages -d
 adb shell pm list packages -e
 ```
 
-A package path under `/product/priv-app`, `/system/priv-app`, or `/system_ext/priv-app` means it is a privileged system package. That alone does not make it unsafe to disable or remove for user 0, but it is a reason to inspect dependencies first.
+A package path such as:
 
-## Verify after a debloat batch
+```text
+/product/priv-app/...
+/system/priv-app/...
+/system_ext/priv-app/...
+```
 
-After removing a group of packages:
+shows that it is a privileged/system component. That does not automatically mean it cannot be disabled for user 0, but it is a strong reason to inspect its purpose and dependencies first.
+
+## 11. Verify after each batch
+
+Reboot after a meaningful group of removals:
 
 ```bash
 adb reboot
 ```
 
-Then verify that the intended packages remain absent:
+Then verify the intended package state. For a single package:
 
 ```bash
-adb shell pm list packages | grep -Ei 'PACKAGE1|PACKAGE2|PACKAGE3'
+adb shell pm list packages com.google.android.apps.photos
 ```
 
-Also check the phone manually for:
+For several packages:
 
-- Settings pages still opening normally
-- mobile data / calls / SMS
-- Wi-Fi and Bluetooth
-- camera
-- Motorola gestures and battery settings
-- Play Store and Google services
-- OTA update functionality
+```bash
+adb shell pm list packages | grep -Ei 'photos|tachyon|youtube.music|taboola|glance'
+```
+
+Do not assume every grep result is the application you meant to remove; overlays and framework components can share similar terms.
+
+Also test the phone manually:
+
+- Settings pages open normally
+- calls and SMS work
+- mobile data works
+- Wi-Fi works
+- Bluetooth works
+- camera works
+- Motorola gestures/settings still work
+- Play Store and Google Play services work
+- notifications work
+- OTA update functionality remains present
+
+## 12. Compare before and after
+
+Capture the state again:
+
+```bash
+adb shell pm list packages | sort > packages-after.txt
+adb shell pm list packages -d | sort > packages-disabled-after.txt
+adb shell pm list packages -3 | sort > packages-third-party-after.txt
+```
+
+Then compare:
+
+```bash
+diff -u packages-before.txt packages-after.txt
+```
+
+This gives you an auditable record of exactly what changed.
+
+## 13. Restore a removed system package
+
+For a system package removed only for user 0:
+
+```bash
+adb shell cmd package install-existing PACKAGE.NAME
+```
+
+For example:
+
+```bash
+adb shell cmd package install-existing com.google.android.apps.photos
+```
+
+Check the result:
+
+```bash
+adb shell pm list packages com.google.android.apps.photos
+```
 
 ## General rule
 
-Do not debloat just to make the package count smaller. Once promotional software and genuinely unwanted user-facing features are gone, further removal gives diminishing returns and increases the chance of breaking stock-ROM integration.
+Do not debloat simply to make `pm list packages` shorter. Once promotional software and genuinely unwanted user-facing features are gone, further package removal produces diminishing returns while increasing the chance of breaking stock-ROM integration.
