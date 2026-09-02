@@ -23,6 +23,10 @@ set -Eeuo pipefail
 
 EXPECTED_PRODUCT="cancunf"
 EXPECTED_CID="0x0032"
+# flashfile.xml only contains "_a" slot partition images. If current-slot
+# ever reports "b" (e.g. after an OTA switched the active slot), switch
+# back before running this script:
+#   fastboot set_active a
 EXPECTED_SLOT="a"
 EXPECTED_SPARSE="268435456"
 EXPECTED_BUILD="V1TDS35H.83-20-5-8-4"
@@ -151,7 +155,7 @@ printf 'Bootloader:       %s\n' "${BOOTLOADER:-<unavailable>}"
 
 [[ "$PRODUCT" == "$EXPECTED_PRODUCT" ]] || die "Product mismatch: expected $EXPECTED_PRODUCT, got ${PRODUCT:-<empty>}."
 [[ "${CID,,}" == "${EXPECTED_CID,,}" ]] || die "CID mismatch: expected $EXPECTED_CID, got ${CID:-<empty>}."
-[[ "$SLOT" == "$EXPECTED_SLOT" ]] || die "Current slot must be $EXPECTED_SLOT, got ${SLOT:-<empty>}."
+[[ "$SLOT" == "$EXPECTED_SLOT" ]] || die "Current slot must be $EXPECTED_SLOT, got ${SLOT:-<empty>}. If this is slot b, run: fastboot set_active $EXPECTED_SLOT"
 [[ "$SPARSE" == "$EXPECTED_SPARSE" ]] || die "max-sparse-size mismatch: expected $EXPECTED_SPARSE, got ${SPARSE:-<empty>}."
 
 banner "Verify every firmware file against flashfile.xml"
