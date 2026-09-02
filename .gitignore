@@ -24,6 +24,7 @@ wanted-apps*.txt
 still-to-install*.txt
 normal-install*.txt
 currently-installed-user-apps*.txt
+debloat-logs/
 
 # Potentially sensitive exports
 *.db

@@ -13,6 +13,10 @@ Android: 15
 
 The guiding rule was simple: remove promotional or genuinely unwanted applications while keeping stock stability, telephony, OTA, Settings integration, Google services and security-related Motorola components intact.
 
+**Before you start:** if you have already signed into a Google account on this flash, your `packages-before` snapshot can include dozens of your own previously-installed apps that Google Play silently reinstalled, not anything from the firmware. See [`stock-applications.md`, "Watch out for Google Play auto-restore on a fresh flash"](stock-applications.md#watch-out-for-google-play-auto-restore-on-a-fresh-flash) before treating every package in that snapshot as stock. It does not change which packages get removed below — the removal list here is fixed and does not touch third-party/personal apps — but it matters if you are deciding whether to remove anything *beyond* this list on your own device.
+
+An automated script that performs the exact removal batches below, with its own logging, is described in [section 14](#14-automated-script). The manual steps that follow remain the documented reasoning for each decision.
+
 ## 1. Capture the stock state first
 
 Before removing anything, capture package lists so you can compare the before/after state later:
@@ -329,6 +333,28 @@ Check the result:
 
 ```bash
 adb shell pm list packages com.google.android.apps.photos
+```
+
+## 14. Automated script
+
+[`debloat-cancunf.sh`](../debloat-cancunf.sh) automates the three removal batches documented above (sections 5, 7 and 8 — 26 packages in total, in the same order) plus the before/after snapshotting and comparison from sections 1 and 12.
+
+It is guarded the same way as the firmware flashers in this repository:
+
+- refuses to run unless exactly one authorized `adb` device is connected and reports `ro.product.device` as `cancunf`;
+- prints the full list of packages it is about to remove and requires typing `YES` before doing anything;
+- pauses after each of the three batches so you can reboot and manually test the phone before continuing, exactly as this document recommends;
+- captures `pm list packages`, `-f`, `-d` and `-3` snapshots before and after into a timestamped `debloat-logs/<timestamp>/` directory, along with a `diff -u` between the before/after package lists and a per-package OK/FAILED result log;
+- warns (without stopping) if the before-snapshot package count is higher than this project's documented 403-package stock baseline, pointing at the Google Play auto-restore note above, since that is a sign the device's third-party package list may include your own apps rather than firmware;
+- treats a single failed `pm uninstall` as non-fatal — it is logged and reported at the end rather than aborting the run, since a genuinely bad removal is reversible with `adb shell cmd package install-existing` and the point of this project is inspection, not blind automation.
+
+It only ever touches the same 26 packages documented in this file. It does not remove `com.amazon.appmanager` or `com.orange.aura.oobe` (both were already disabled on the tested device, per section 9) and it does not touch any third-party/personal app.
+
+Recommended invocation:
+
+```bash
+chmod +x debloat-cancunf.sh
+./debloat-cancunf.sh 2>&1 | tee debloat-run.log
 ```
 
 ## General rule

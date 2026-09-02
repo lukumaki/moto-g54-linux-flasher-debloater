@@ -66,6 +66,7 @@ Do **not** rename one firmware build and use the other build's script. The scrip
 - Capturing the stock package set before debloating
 - Removing only selected packages for Android user 0
 - Keeping framework, telephony, OTA, security and Motorola integration components intact
+- Running the removal batches through a guarded script with its own before/after logging
 - Keeping the screen awake during long ADB/app-install sessions
 - Reinstalling large application lists through Google Play using package names
 
@@ -462,7 +463,8 @@ See [`docs/debloat.md`](docs/debloat.md) for:
 - packages left disabled;
 - packages deliberately kept;
 - verification after each batch;
-- the meaning of `Success` from Android Package Manager.
+- the meaning of `Success` from Android Package Manager;
+- [`debloat-cancunf.sh`](debloat-cancunf.sh), a guarded script that automates the removal batches together with before/after logging (see [docs/debloat.md, section 14](docs/debloat.md#14-automated-script)).
 
 ---
 
