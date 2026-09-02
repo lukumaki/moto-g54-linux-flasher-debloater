@@ -1,6 +1,6 @@
 # Reinstalling applications from a package-name list
 
-This documents the process used after the stock restore and debloat to reinstall a large set of ordinary Android applications through Google Play without searching for each app manually.
+This documents the process used after the stock restore and debloat to reinstall a large set of Android applications through Google Play without searching for each app manually.
 
 Test environment:
 
@@ -47,6 +47,8 @@ normal-install.txt
 ```
 
 Blank lines should be avoided.
+
+Banking, payment, government-ID and authenticator applications can be included in the same package-name list. The important distinction is not how the APK is installed, but how its private app data is handled afterwards: install these apps fresh from Google Play and perform their normal login/device-registration process rather than blindly transplanting old private application data.
 
 ## 2. Verify ADB
 
@@ -277,13 +279,15 @@ Then:
 cat missing-after-install.txt
 ```
 
-## 10. Sensitive applications
+## 10. Banking, payment, government and authenticator applications
 
-Banking, payment, government-ID, authenticator and similar applications are best treated separately.
+There is no technical reason to exclude these applications from the same ADB + Play Store reinstall workflow. The tested method only opens the official Play Store page; Google Play still downloads and verifies the application normally.
 
-Install them fresh from Google Play and perform their normal login/device-registration process instead of blindly transplanting old private application data.
+So these packages can be mixed into the same list as ordinary applications and queued in exactly the same way.
 
-Examples include banking apps, wallets, password/authenticator applications and government identity apps.
+What should remain separate is **data restoration**. For banking, payment, government-ID and authenticator apps, prefer a clean Play Store install followed by the app's normal login, device registration, activation or identity-verification process. Avoid restoring old private app data unless you know that application explicitly supports it.
+
+This is especially relevant after returning from a custom ROM to locked stock firmware, where the goal is to let security-sensitive apps establish their state cleanly on the restored device.
 
 ## 11. Package names that no longer exist
 
@@ -307,7 +311,7 @@ adb shell svc power stayon false
 
 ## Why use Play Store rather than bulk `adb install`?
 
-For ordinary applications after returning to stock Android, Play Store installation has several advantages:
+For ordinary and security-sensitive applications after returning to stock Android, Play Store installation has several advantages:
 
 - correct APK splits are selected automatically;
 - signatures come from the normal distribution source;
@@ -315,4 +319,4 @@ For ordinary applications after returning to stock Android, Play Store installat
 - architecture and density variants are handled automatically;
 - there is no need to maintain a local archive of APK files.
 
-For this project that made it the preferred reinstall method for normal applications after the stock restore.
+For this project that made it the preferred reinstall method after the stock restore.
