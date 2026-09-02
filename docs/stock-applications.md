@@ -103,6 +103,19 @@ The original package snapshot also contained hundreds of entries such as Android
 
 They were intentionally not turned into an aggressive removal list. The goal of this project is a stable stock device, not the smallest possible output from `pm list packages`.
 
+## Watch out for Google Play auto-restore on a fresh flash
+
+After later flashing the Motorola Software Fix build `V1TDS35H.83-20-5-8-4` (see the [README](../README.md#firmware-builds-documented-here)) and signing back into a Google account, a raw `pm list packages` snapshot on that device showed **489** packages instead of the 403 seen on the original `V1TDS35H.83-20-5-12` restore.
+
+The extra packages were not part of the firmware. Cross-checking the third-party subset (`pm list packages -3`, 96 entries) against this file's original 403-package reference (`reference/all-packages.txt`) split cleanly in two:
+
+- **10 third-party packages matched** entries already present in the original stock snapshot — genuine Motorola/carrier-bundled apps such as `com.facebook.katana`, `com.brave.browser`, `com.google.android.apps.docs.editors.{docs,sheets,slides}`, `com.google.android.apps.{fitness,podcasts,adm,walletnfcrel}`.
+- **86 third-party packages did not exist** in the original firmware snapshot at all — recognizable personal apps (`com.whatsapp`, `com.instagram.android`, `com.spotify.music`, `com.anthropic.claude`, `com.openai.chatgpt`, `com.bitwarden.authenticator`, several Greek banking/government/utility apps, and similar).
+
+Removing exactly those 86 packages from the 489-package snapshot reproduced the original 403-package list **exactly**, name for name. This confirms two things: `V1TDS35H.83-20-5-8-4` ships the identical stock application set as `V1TDS35H.83-20-5-12`, and the 86 extra packages came entirely from Google Play's "restore apps" feature reinstalling the signed-in account's previously-used apps — not from the firmware.
+
+**Practical guidance:** if you sign into Google before capturing a `packages-before` snapshot on a fresh flash, expect it to be polluted with your own previously-installed apps. Either capture the snapshot before adding a Google account, or diff the third-party subset (`pm list packages -3`) against [`reference/all-packages.txt`](../reference/all-packages.txt) to separate genuine stock/carrier bundles from auto-restored personal apps before making any debloat decisions from it.
+
 ## Capture your own before-state
 
 Before changing a different firmware build, create your own snapshots:

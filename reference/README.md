@@ -51,6 +51,10 @@ Android normally prints entries as:
 package:/path/to/base.apk=com.example.package
 ```
 
+## Confirmed identical stock set on `V1TDS35H.83-20-5-8-4`
+
+A later snapshot taken on the Motorola Software Fix build `V1TDS35H.83-20-5-8-4`, after signing into a Google account, initially showed 489 packages instead of 403. After excluding 86 packages identified as Google Play "restore apps" reinstalling the account's own previously-used apps, the remaining set matched this file's 403 packages exactly. See [`../docs/stock-applications.md`](../docs/stock-applications.md#watch-out-for-google-play-auto-restore-on-a-fresh-flash) for the full comparison and methodology — useful if you need to tell a genuine firmware package apart from a personal app restored after sign-in.
+
 ## Important
 
 These files are a **reference snapshot, not a universal debloat list**. Different regions, carrier configurations, OTA revisions, and Motorola firmware builds can contain different packages or paths.
