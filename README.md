@@ -496,6 +496,62 @@ This does not disable Android's screen timeout permanently; it controls the "sta
 
 ---
 
+# Troubleshooting
+
+The guarded flasher is intentionally strict: it stops rather than guesses whenever something does not match what Motorola's `flashfile.xml` or the connected device reports. Below is what each stop message actually means and what to check.
+
+### `fastboot is not installed or not in PATH.` / `python3 is required for XML/MD5 validation.`
+
+Install the missing tool (see [Requirements](#requirements)) and re-run the script.
+
+### `flashfile.xml not found. Run this script from the extracted firmware directory.`
+
+The script must be copied into and run from the directory that contains `flashfile.xml` and the firmware images, not from wherever it was downloaded to.
+
+### `ERROR: XML model mismatch` / `ERROR: XML build mismatch` / `ERROR: XML CID mismatch` / `ERROR: XML max-sparse-size mismatch`
+
+These come from reading `flashfile.xml` itself, before the phone is even touched. They mean the firmware package you extracted does not match the build the script was written for. Re-check which script matches which firmware, as described in [Firmware builds documented here](#firmware-builds-documented-here). Do not edit the script's `EXPECTED_*` values to force a match — get the correct firmware/script pairing instead.
+
+### `Expected exactly one fastboot device; found 0.` (or more than one)
+
+The phone is not in Fastboot mode, the USB cable/port is unreliable, or more than one fastboot-mode device is connected. Run `fastboot devices` on its own to confirm exactly one device is listed before retrying.
+
+### `Product mismatch: expected cancunf, got ...`
+
+The connected phone is not a Moto G54 5G (`cancunf`), or `fastboot getvar product` could not be read. Double-check you have the right device connected.
+
+### `CID mismatch: expected 0x0032, got ...`
+
+The phone's Carrier/Config ID does not match the firmware's CID. Flashing a firmware package built for a different CID/region is a common cause of a bricked device — get the firmware package that matches your phone's own CID instead of bypassing this check.
+
+### `Current slot must be a, got b.`
+
+Both flashers in this repository only contain images for the `_a` slot partitions, matching Motorola's `flashfile.xml`. If a prior OTA update left the phone on slot `b`, switch the active slot back to `a` before flashing:
+
+```bash
+fastboot set_active a
+```
+
+Then re-run `fastboot getvar current-slot` to confirm it now reports `a`, and start the script again.
+
+### `max-sparse-size mismatch: expected 268435456, got ...`
+
+The device's fastboot implementation reports a different maximum sparse chunk size than the firmware expects. This is unusual on a stock Moto G54 5G bootloader; if it happens, do not force past it without understanding why, since the `super` partition is flashed in sparse chunks sized for `268435456`.
+
+### `MISSING <file>` / `FAILED <file>` during firmware verification
+
+A firmware file referenced by `flashfile.xml` is either missing from the extracted directory or its MD5 does not match. This usually means the split archive (`.001`, `.002`, ...) was reassembled incorrectly or the ZIP was only partially extracted. Redo [steps 1–3](#1-reassemble-motorola-split-firmware) and re-verify before flashing.
+
+### `Flashing not authorized.`
+
+This is not an error — it means something other than exactly `YES` was typed at a confirmation prompt, so the script stopped safely without flashing anything. Re-run the script when ready.
+
+### Stopped mid-flash with `Motorola fb_mode is still SET`
+
+A `fastboot` command failed partway through flashing. Do not reboot the phone. Read the terminal output (or the `tee` log) to see which stage and command failed, and resolve that specific problem before deciding whether it is safe to continue, retry, or seek help referencing the exact failing command.
+
+---
+
 # Firmware redistribution
 
 This repository does **not** distribute Motorola firmware images, proprietary APKs, Seedvault backups, personal app data or authentication material.
