@@ -86,6 +86,8 @@ That distinction is one of the reasons this method was chosen.
 
 A failure should be inspected rather than worked around blindly. For example, during the tested session `com.amazon.appmanager` returned a package-manager failure when an uninstall was attempted. Inspection showed that the package lived under `/product/priv-app` and was already disabled for user 0, so it was simply left disabled.
 
+One specific non-`Success` result is benign and worth calling out on its own: `Failure [not installed for 0]` means the package was already removed for user 0 before this command ran — typically because a previous debloat pass (or a previous run of `debloat-cancunf.sh`) already removed it. There is nothing left to do; the end state is identical to a fresh successful removal. `debloat-cancunf.sh` recognizes this exact message and reports it as `ALREADY REMOVED` rather than `FAILED`, so re-running the script on an already-debloated phone doesn't produce a wall of misleading failures.
+
 ## 5. First removal batch
 
 The first conservative batch removed unwanted Google applications and obvious partner/recommendation components:
@@ -392,6 +394,7 @@ It is guarded the same way as the firmware flashers in this repository:
 - captures `pm list packages`, `-f`, `-d` and `-3` snapshots before and after into a timestamped `debloat-logs/<timestamp>/` directory, along with a `diff -u` between the before/after package lists and a per-package OK/FAILED result log;
 - warns (without stopping) if the before-snapshot package count is higher than this project's documented 403-package stock baseline, pointing at the Google Play auto-restore note above, since that is a sign the device's third-party package list may include your own apps rather than firmware;
 - treats a single failed `pm uninstall` as non-fatal — it is logged and reported at the end rather than aborting the run, since a genuinely bad removal is reversible with `adb shell cmd package install-existing` and the point of this project is inspection, not blind automation;
+- distinguishes a package already removed before the run (`Failure [not installed for 0]`, logged as `ALREADY REMOVED`) from a genuine failure, so re-running the script on an already-debloated phone doesn't report false failures (see section 4);
 - for the section 14 batch specifically, checks each package is actually installed before attempting to remove it, since that batch is not guaranteed present the way the core 26 are.
 
 It does not remove `com.amazon.appmanager` or `com.orange.aura.oobe` (both were already disabled on the tested device, per section 9) and it does not touch any other third-party/personal app.

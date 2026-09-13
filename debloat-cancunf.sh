@@ -144,6 +144,11 @@ remove_stage() {
         if [[ "$rc" -eq 0 ]] && printf '%s' "$out" | grep -qi 'success'; then
             printf 'OK\n'
             printf 'OK       %s\n' "$pkg" >> "$LOG_DIR/removal-results.txt"
+        elif printf '%s' "$out" | grep -qi 'not installed for 0'; then
+            # Already removed for user 0 before this run started (e.g. a
+            # prior debloat pass) - nothing to do, not a real failure.
+            printf 'ALREADY REMOVED\n'
+            printf 'ALREADY-REMOVED %s (%s)\n' "$pkg" "$out" >> "$LOG_DIR/removal-results.txt"
         else
             printf 'FAILED (%s)\n' "$out"
             printf 'FAILED   %s (%s)\n' "$pkg" "$out" >> "$LOG_DIR/removal-results.txt"
@@ -267,11 +272,13 @@ diff -u "$LOG_DIR/packages-before.txt" "$LOG_DIR/packages-after.txt" > "$LOG_DIR
 
 FAILED_COUNT="$(grep -c '^FAILED' "$LOG_DIR/removal-results.txt" || true)"
 OK_COUNT="$(grep -c '^OK' "$LOG_DIR/removal-results.txt" || true)"
+ALREADY_REMOVED_COUNT="$(grep -c '^ALREADY-REMOVED' "$LOG_DIR/removal-results.txt" || true)"
 SKIPPED_COUNT="$(grep -c '^SKIPPED' "$LOG_DIR/removal-results.txt" || true)"
 
 banner "DEBLOAT RUN COMPLETE"
 cat <<EOF
 Removed successfully: $OK_COUNT
+Already removed before this run (nothing to do): $ALREADY_REMOVED_COUNT
 Failed: $FAILED_COUNT
 Skipped (Stage 4 packages not present on this phone): $SKIPPED_COUNT
 
