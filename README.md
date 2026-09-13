@@ -62,6 +62,19 @@ That makes it a repair/service reflash intended to fix firmware or system corrup
 
 **Compatibility caveat:** preserving `userdata`/`metadata` while reflashing system images is only safe when the firmware you reflash is compatible with the encryption state already on the phone — `metadata` holds the file-based-encryption policy/keys tied to `userdata`, which is why the two are only ever skipped together. Don't use the service flasher across an Android version, CID or region change. If in doubt, use the full stock flasher and expect a factory reset.
 
+**Field-confirmed on real hardware:** run on the tested device with the bootloader locked (`securestate: flashing_locked`; see [Before you start](#before-you-start-developer-options-unlocking-and-relocking)). Every fastboot step completed with `OKAY`, the phone rebooted successfully, and post-boot verification showed:
+
+```text
+adb shell getprop ro.build.fingerprint
+motorola/cancunf_g_sysenq/cancunf:15/V1TDS35H.83-20-5-8-4/d3b29e-8d7d82:user/release-keys
+adb shell getprop ro.build.version.security_patch
+2026-07-01
+adb shell getprop ro.boot.verifiedbootstate
+green
+```
+
+`verifiedbootstate: green` means Android's verified boot chain validated the flashed images against Motorola's own signing keys — independent, boot-time confirmation (not just a fastboot `OKAY`) that the service flash succeeded correctly while the bootloader stayed locked throughout.
+
 ## What this project covers
 
 - Reassembling Motorola split firmware archives (`.001`, `.002`, ...)
@@ -133,7 +146,7 @@ On the phone:
 
 The steps below get a stock phone into the state most people should aim for before using this repository: Developer options enabled, `fastboot` working, and the bootloader unlocked. Unlocking itself was not part of the originally documented restore and its own output was not captured here, so treat the unlock commands below as the standard Motorola/Android procedure rather than something independently re-verified on the tested device. Re-locking (Part I, step 11 and [`docs/relock-bootloader.md`](docs/relock-bootloader.md)) *was* captured on the tested device.
 
-**Update from real-world testing:** on this device's MediaTek bootloader, the flasher scripts were confirmed to complete a full flash successfully with the bootloader still *locked* (`securestate: flashing_locked`), because they only flash Motorola's own officially signed, CID-matching firmware. See the callout after step 4 before assuming you must unlock first.
+**Update from real-world testing:** on this device's MediaTek bootloader, `flash-service-cancunf-V1TDS35H-83-20-5-8-4.sh` completed a full flash and successful reboot with the bootloader still *locked* (`securestate: flashing_locked`) — confirmed by `ro.boot.verifiedbootstate: green` after boot, not just fastboot returning `OKAY` — because these scripts only flash Motorola's own officially signed, CID-matching firmware. See the callout after step 4 before assuming you must unlock first.
 
 ### 1. Enable Developer options
 
