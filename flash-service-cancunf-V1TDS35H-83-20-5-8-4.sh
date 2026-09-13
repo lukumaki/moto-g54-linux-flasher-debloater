@@ -108,6 +108,25 @@ getvar_value() {
     printf '%s\n' "$out" | sed -nE "s/^(\\(bootloader\\) )?${var}: ?//p" | head -n1
 }
 
+bootloader_unlocked_value() {
+    # Tries the generic AOSP `getvar unlocked` first, then falls back to
+    # Motorola's `oem device-info`, since not every Motorola bootloader
+    # version implements the former. Prints "yes", "no", or nothing if
+    # neither source returns a recognizable value.
+    local val
+    val="$(getvar_value unlocked)"
+
+    if [[ -z "$val" || "$val" == "not supported"* ]]; then
+        val="$(fastboot oem device-info 2>&1 | sed -nE 's/^\(bootloader\) *Device unlocked: *//Ip' | head -n1 | tr -d '\r')"
+    fi
+
+    case "${val,,}" in
+        yes|true) printf 'yes' ;;
+        no|false) printf 'no' ;;
+        *) printf '' ;;
+    esac
+}
+
 print_xml_step() {
     # Looks up and prints the literal <step> in servicefile.xml that this
     # fastboot command corresponds to, so the log shows exactly which
@@ -226,6 +245,7 @@ SLOT="$(getvar_value current-slot)"
 SPARSE="$(getvar_value max-sparse-size)"
 SECURE="$(getvar_value secure)"
 BOOTLOADER="$(getvar_value version-bootloader)"
+UNLOCKED="$(bootloader_unlocked_value)"
 
 printf 'Device product:   %s\n' "${PRODUCT:-<unavailable>}"
 printf 'Device CID:       %s\n' "${CID:-<unavailable>}"
@@ -233,11 +253,19 @@ printf 'Current slot:     %s\n' "${SLOT:-<unavailable>}"
 printf 'Max sparse size:  %s\n' "${SPARSE:-<unavailable>}"
 printf 'Secure:           %s\n' "${SECURE:-<unavailable>}"
 printf 'Bootloader:       %s\n' "${BOOTLOADER:-<unavailable>}"
+printf 'Unlocked:         %s\n' "${UNLOCKED:-<unknown>}"
 
 [[ "$PRODUCT" == "$EXPECTED_PRODUCT" ]] || die "Product mismatch: expected $EXPECTED_PRODUCT, got ${PRODUCT:-<empty>}."
 [[ "${CID,,}" == "${EXPECTED_CID,,}" ]] || die "CID mismatch: expected $EXPECTED_CID, got ${CID:-<empty>}."
 [[ "$SLOT" == "$EXPECTED_SLOT" ]] || die "Current slot must be $EXPECTED_SLOT, got ${SLOT:-<empty>}. If this is slot b, run: fastboot set_active $EXPECTED_SLOT"
 [[ "$SPARSE" == "$EXPECTED_SPARSE" ]] || die "max-sparse-size mismatch: expected $EXPECTED_SPARSE, got ${SPARSE:-<empty>}."
+
+if [[ "$UNLOCKED" == "no" ]]; then
+    die "Bootloader is LOCKED. fastboot flash is rejected on a locked bootloader regardless of firmware authenticity. See the README section \"Before you start: Developer options, unlocking, and relocking\" to unlock it first."
+elif [[ -z "$UNLOCKED" ]]; then
+    printf '\nWARNING: could not confirm bootloader unlock state (getvar unlocked / oem device-info did not return a recognizable value).\n'
+    printf 'Proceeding anyway - if the next fastboot command fails with something like "not allowed in locked state", unlock the bootloader first (see the README).\n'
+fi
 
 banner "Verify every firmware file against servicefile.xml"
 

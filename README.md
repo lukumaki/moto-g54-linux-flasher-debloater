@@ -428,7 +428,7 @@ Using `tee` is recommended. It leaves a complete host-side log that can be revie
 The script deliberately:
 
 - validates the firmware XML identity first;
-- checks the connected device;
+- checks the connected device, including refusing to run on a locked bootloader;
 - verifies every XML-referenced firmware file against its MD5;
 - prints the literal source-XML `<step>` (`flashfile.xml` or `servicefile.xml`) that each `fastboot` command corresponds to, warning instead of guessing if a command has no matching step;
 - pauses before destructive stages;
