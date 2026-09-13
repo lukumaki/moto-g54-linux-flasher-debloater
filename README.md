@@ -349,6 +349,7 @@ The script deliberately:
 - validates the firmware XML identity first;
 - checks the connected device;
 - verifies every XML-referenced firmware file against its MD5;
+- prints the literal `flashfile.xml` `<step>` that each `fastboot` command corresponds to, warning instead of guessing if a command has no matching step;
 - pauses before destructive stages;
 - follows Motorola's XML order;
 - stops if a `fastboot` operation fails;

@@ -80,7 +80,63 @@ getvar_value() {
     printf '%s\n' "$out" | sed -nE "s/^(\\(bootloader\\) )?${var}: ?//p" | head -n1
 }
 
+print_xml_step() {
+    # Looks up and prints the literal <step> in flashfile.xml that this
+    # fastboot command corresponds to, so the log shows exactly which
+    # Motorola-authored line each command came from. Warns instead of
+    # guessing if no matching step exists.
+    local op="$1"; shift
+    local partition="" filename="" var=""
+
+    case "$op" in
+        flash)
+            partition="$1"
+            filename="$2"
+            ;;
+        erase)
+            partition="$1"
+            ;;
+        getvar|oem)
+            var="$*"
+            ;;
+        *)
+            return 0
+            ;;
+    esac
+
+    python3 - "$op" "$partition" "$filename" "$var" <<'PY'
+import sys
+import xml.etree.ElementTree as ET
+
+op, partition, filename, var = sys.argv[1:5]
+root = ET.parse("flashfile.xml").getroot()
+
+match = None
+for step in root.findall(".//step"):
+    if step.get("operation") != op:
+        continue
+    if op == "flash":
+        if step.get("partition") == partition and step.get("filename") == filename:
+            match = step
+            break
+    elif op == "erase":
+        if step.get("partition") == partition:
+            match = step
+            break
+    else:
+        if step.get("var") == var:
+            match = step
+            break
+
+if match is not None:
+    print("# flashfile.xml: " + ET.tostring(match).decode().strip())
+else:
+    print(f"# WARNING: no matching <step> found in flashfile.xml for: fastboot {op} {partition or var} {filename}".rstrip())
+PY
+}
+
 run_fb() {
+    print_xml_step "$@"
     printf '\n+ fastboot'
     printf ' %q' "$@"
     printf '\n'
