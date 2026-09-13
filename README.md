@@ -129,6 +129,69 @@ On the phone:
 - sufficient battery charge
 - reliable USB cable/port
 
+## Before you start: Developer options, unlocking, and relocking
+
+The steps below get a stock, locked phone into the state this repository's scripts expect: Developer options enabled, `fastboot` working, and the bootloader unlocked. Unlocking itself was already done before the restore documented in this repository and its own output was not captured here, so treat the commands below as the standard Motorola/Android procedure rather than something independently re-verified on the tested device. Re-locking (Part I, step 11 and [`docs/relock-bootloader.md`](docs/relock-bootloader.md)) *was* captured on the tested device.
+
+### 1. Enable Developer options
+
+On the phone: **Settings → About phone → tap "Build number" 7 times.** "Developer options" then appears under **Settings → System**.
+
+### 2. Enable OEM unlocking and USB debugging
+
+Inside Developer options, enable both:
+
+- **OEM unlocking** — required before `fastboot` will accept an unlock command at all. On Motorola devices this can require an active SIM/internet connection and a signed-in Google account the first time, since the toggle itself may need to phone home to confirm the device is eligible.
+- **USB debugging** — required for every `adb`-based step in this repository (all of Part II/III, the verification commands in Part I, and `debloat-cancunf.sh`). It is **not** required for `fastboot`/flashing itself, since fastboot talks to the bootloader directly, before Android boots.
+
+When you plug in and run `adb devices` for the first time, accept the "Allow USB debugging?" prompt on the phone screen; otherwise the host is not authorized and every `adb` command in this repository will fail.
+
+### 3. Get into fastboot/bootloader mode
+
+Either:
+
+```bash
+adb reboot bootloader
+```
+
+(requires USB debugging and an already-authorized host), or hold **Volume Down + Power** while the phone is off (no ADB required — useful if Android does not boot).
+
+### 4. Check whether the bootloader is locked
+
+```bash
+fastboot devices
+fastboot flashing get_unlock_ability
+fastboot oem device-info
+fastboot getvar unlocked
+```
+
+- `fastboot flashing get_unlock_ability` reports whether an unlock is currently *permitted* (i.e. OEM unlocking was enabled and no carrier/policy restriction blocks it) — not whether the phone is already unlocked.
+- `fastboot oem device-info` is the Motorola-specific command that reports the actual state, e.g. `Device unlocked: false`.
+- `fastboot getvar unlocked` is the generic AOSP equivalent; some Motorola bootloader versions don't implement it and print `unlocked: not supported`, which is expected and not an error.
+
+### 5. Unlock the bootloader
+
+**This factory-resets the phone.** Unlocking the bootloader is a security measure that wipes `userdata` by design, on every Android device, not something specific to this repository's scripts. Back up anything you need first.
+
+```bash
+fastboot flashing unlock
+```
+
+(older Motorola bootloaders instead use `fastboot oem unlock`). Confirm on the phone's screen using the volume/power keys as prompted. Re-run step 4's checks afterward — `fastboot oem device-info` should now report `Device unlocked: true`.
+
+Only once the bootloader is confirmed unlocked should you continue to [Part I](#part-i---stock-firmware-restoration) below.
+
+### 6. Relocking, once you're done
+
+Relocking is covered in full, with the tested device's actual output, in [Part I, step 11](#11-relock-the-bootloader) and [`docs/relock-bootloader.md`](docs/relock-bootloader.md). In short, after stock Android has booted successfully and been verified:
+
+```bash
+adb reboot bootloader
+fastboot oem lock
+```
+
+Do this only after the restored stock system has booted and been checked — not immediately after flashing.
+
 ---
 
 # Part I - Stock firmware restoration
