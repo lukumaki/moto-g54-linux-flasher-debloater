@@ -81,14 +81,24 @@ getvar_value() {
 }
 
 bootloader_unlocked_value() {
-    # Tries the generic AOSP `getvar unlocked` first, then falls back to
-    # Motorola's `oem device-info`, since not every Motorola bootloader
-    # version implements the former. Prints "yes", "no", or nothing if
-    # neither source returns a recognizable value.
+    # Tries the generic AOSP `getvar unlocked` first, then Motorola's
+    # `securestate` (flashing_locked / flashing_unlocked - the value shown
+    # directly on the fastboot screen on this device's MediaTek bootloader,
+    # and the one confirmed present when `unlocked` is not), then falls
+    # back to `oem device-info`. Prints "yes", "no", or nothing if none of
+    # the sources return a recognizable value.
     local val
     val="$(getvar_value unlocked)"
 
     if [[ -z "$val" || "$val" == "not supported"* ]]; then
+        case "$(getvar_value securestate)" in
+            flashing_unlocked) val="yes" ;;
+            flashing_locked) val="no" ;;
+            *) val="" ;;
+        esac
+    fi
+
+    if [[ -z "$val" ]]; then
         val="$(fastboot oem device-info 2>&1 | sed -nE 's/^\(bootloader\) *Device unlocked: *//Ip' | head -n1 | tr -d '\r')"
     fi
 
@@ -233,9 +243,20 @@ printf 'Unlocked:         %s\n' "${UNLOCKED:-<unknown>}"
 [[ "$SPARSE" == "$EXPECTED_SPARSE" ]] || die "max-sparse-size mismatch: expected $EXPECTED_SPARSE, got ${SPARSE:-<empty>}."
 
 if [[ "$UNLOCKED" == "no" ]]; then
-    die "Bootloader is LOCKED. fastboot flash is rejected on a locked bootloader regardless of firmware authenticity. See the README section \"Before you start: Developer options, unlocking, and relocking\" to unlock it first."
+    cat <<'EOF'
+
+NOTE: bootloader reports LOCKED.
+On this device's MediaTek Motorola bootloader, a locked state does not by
+itself block flashing Motorola's own officially signed, CID-matching
+firmware via fastboot - confirmed working on the tested device. This is
+NOT a general "any locked bootloader accepts any image" guarantee:
+unsigned or custom images still require a genuine unlock. If a flash
+command below fails with something like "not allowed in locked state",
+see the README section "Before you start: Developer options, unlocking,
+and relocking".
+EOF
 elif [[ -z "$UNLOCKED" ]]; then
-    printf '\nWARNING: could not confirm bootloader unlock state (getvar unlocked / oem device-info did not return a recognizable value).\n'
+    printf '\nWARNING: could not confirm bootloader unlock state (getvar unlocked / securestate / oem device-info did not return a recognizable value).\n'
     printf 'Proceeding anyway - if the next fastboot command fails with something like "not allowed in locked state", unlock the bootloader first (see the README).\n'
 fi
 

@@ -125,13 +125,15 @@ On the phone:
 
 - Moto G54 5G (`cancunf`)
 - correct firmware for that device/region/CID
-- bootloader unlocked for the flashing stage
+- bootloader unlocked for the flashing stage — except on this device's MediaTek bootloader when flashing Motorola's own officially signed firmware, where a locked bootloader was confirmed to still work; see [Before you start](#before-you-start-developer-options-unlocking-and-relocking)
 - sufficient battery charge
 - reliable USB cable/port
 
 ## Before you start: Developer options, unlocking, and relocking
 
-The steps below get a stock, locked phone into the state this repository's scripts expect: Developer options enabled, `fastboot` working, and the bootloader unlocked. Unlocking itself was already done before the restore documented in this repository and its own output was not captured here, so treat the commands below as the standard Motorola/Android procedure rather than something independently re-verified on the tested device. Re-locking (Part I, step 11 and [`docs/relock-bootloader.md`](docs/relock-bootloader.md)) *was* captured on the tested device.
+The steps below get a stock phone into the state most people should aim for before using this repository: Developer options enabled, `fastboot` working, and the bootloader unlocked. Unlocking itself was not part of the originally documented restore and its own output was not captured here, so treat the unlock commands below as the standard Motorola/Android procedure rather than something independently re-verified on the tested device. Re-locking (Part I, step 11 and [`docs/relock-bootloader.md`](docs/relock-bootloader.md)) *was* captured on the tested device.
+
+**Update from real-world testing:** on this device's MediaTek bootloader, the flasher scripts were confirmed to complete a full flash successfully with the bootloader still *locked* (`securestate: flashing_locked`), because they only flash Motorola's own officially signed, CID-matching firmware. See the callout after step 4 before assuming you must unlock first.
 
 ### 1. Enable Developer options
 
@@ -163,13 +165,21 @@ fastboot devices
 fastboot flashing get_unlock_ability
 fastboot oem device-info
 fastboot getvar unlocked
+fastboot getvar securestate
 ```
 
 - `fastboot flashing get_unlock_ability` reports whether an unlock is currently *permitted* (i.e. OEM unlocking was enabled and no carrier/policy restriction blocks it) — not whether the phone is already unlocked.
-- `fastboot oem device-info` is the Motorola-specific command that reports the actual state, e.g. `Device unlocked: false`.
-- `fastboot getvar unlocked` is the generic AOSP equivalent; some Motorola bootloader versions don't implement it and print `unlocked: not supported`, which is expected and not an error.
+- `fastboot oem device-info` is a Motorola-specific command that, on some bootloader versions, reports the actual state as `Device unlocked: false`.
+- `fastboot getvar unlocked` is the generic AOSP equivalent; many Motorola bootloader versions don't implement it and print `unlocked: not supported` or fail outright, which is expected and not an error.
+- `fastboot getvar securestate` is the value confirmed present on the tested device's MediaTek bootloader (and shown directly on the fastboot-mode screen): `flashing_locked` or `flashing_unlocked`.
 
-### 5. Unlock the bootloader
+Not every device exposes all four; the flasher scripts here already try them in this order and fall back gracefully.
+
+**Do you actually need to unlock for this repository's scripts?** Not necessarily, on this hardware. `flashfile.xml`/`servicefile.xml` are Motorola's own officially signed images for this exact model and CID, and this device's MediaTek bootloader validates that signature independently of the lock state — flashing one of those packages via plain `fastboot flash` was confirmed to complete successfully with `securestate: flashing_locked` (the same mechanism that lets Motorola's own Rescue and Smart Assistant repair a phone without unlocking it). The flasher scripts detect a locked bootloader and print an informational note rather than refusing to run.
+
+This is **not** a general "locked accepts anything" rule — it applies specifically to Motorola's own signed firmware matching your model/CID, not to unsigned or custom images (custom recovery, patched boot images, custom ROMs), which still require a genuine unlock. If a flash command fails with something like `not allowed in locked state`, or you want the bootloader unlocked anyway (for future custom-ROM work, for instance), continue to step 5.
+
+### 5. Unlock the bootloader (if you need or want to)
 
 **This factory-resets the phone.** Unlocking the bootloader is a security measure that wipes `userdata` by design, on every Android device, not something specific to this repository's scripts. Back up anything you need first.
 
@@ -177,9 +187,7 @@ fastboot getvar unlocked
 fastboot flashing unlock
 ```
 
-(older Motorola bootloaders instead use `fastboot oem unlock`). Confirm on the phone's screen using the volume/power keys as prompted. Re-run step 4's checks afterward — `fastboot oem device-info` should now report `Device unlocked: true`.
-
-Only once the bootloader is confirmed unlocked should you continue to [Part I](#part-i---stock-firmware-restoration) below.
+(older Motorola bootloaders instead use `fastboot oem unlock`). Confirm on the phone's screen using the volume/power keys as prompted. Re-run step 4's checks afterward to confirm.
 
 ### 6. Relocking, once you're done
 
@@ -428,7 +436,7 @@ Using `tee` is recommended. It leaves a complete host-side log that can be revie
 The script deliberately:
 
 - validates the firmware XML identity first;
-- checks the connected device, including refusing to run on a locked bootloader;
+- checks the connected device, including reporting bootloader lock state (informational, not a hard block — see [Before you start](#before-you-start-developer-options-unlocking-and-relocking) for why a locked bootloader can still succeed here);
 - verifies every XML-referenced firmware file against its MD5;
 - prints the literal source-XML `<step>` (`flashfile.xml` or `servicefile.xml`) that each `fastboot` command corresponds to, warning instead of guessing if a command has no matching step;
 - pauses before destructive stages;
