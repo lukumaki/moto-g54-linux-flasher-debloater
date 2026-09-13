@@ -1,10 +1,3 @@
-> ## 📢 Keep Android Open
->
-> If you care about the freedom to unlock, modify, repair, flash custom ROMs, and continue developing for Android devices, please take a moment to visit **[Keep Android Open](https://keepandroidopen.org/en/)** and support the campaign.
->
-> **The ability to unlock and modify our own devices is directly relevant to projects like this one. Please read, share, and act.**
->
-
 # Moto G54 5G (cancunf) Linux Stock Firmware Flasher and Debloater
 
 ![Device](https://img.shields.io/badge/device-Moto%20G54%205G%20(cancunf)-blue)
@@ -15,7 +8,12 @@
 ![Status](https://img.shields.io/badge/status-tested%20on%20real%20device-brightgreen)
 
 A Linux-focused, carefully validated workflow for restoring Motorola stock firmware on the **Moto G54 5G (`cancunf`)**, relocking the bootloader, conservatively debloating the restored stock ROM, and reinstalling applications from a package-name list.
-
+> ## 📢 Keep Android Open
+>
+> If you care about the freedom to unlock, modify, repair, flash custom ROMs, and continue developing for Android devices, please take a moment to visit **[Keep Android Open](https://keepandroidopen.org/en/)** and support the campaign.
+>
+> **The ability to unlock and modify our own devices is directly relevant to projects like this one. Please read, share, and act.**
+>
 This is not a theoretical collection of commands. It documents the actual procedure followed on a real Moto G54 5G from **Debian 13 (Trixie)** and the observations made during that restore.
 
 ## What this project covers
