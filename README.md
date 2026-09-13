@@ -552,7 +552,7 @@ See [`docs/debloat.md`](docs/debloat.md) for:
 - packages deliberately kept;
 - verification after each batch;
 - the meaning of `Success` from Android Package Manager;
-- [`debloat-cancunf.sh`](debloat-cancunf.sh), a guarded script that automates the removal batches together with before/after logging (see [docs/debloat.md, section 14](docs/debloat.md#14-automated-script)).
+- [`debloat-cancunf.sh`](debloat-cancunf.sh), a guarded script that automates the removal batches together with before/after logging (see [docs/debloat.md, section 15](docs/debloat.md#15-automated-script)).
 
 ---
 

@@ -15,8 +15,9 @@ set -Eeuo pipefail
 #   step have already happened and settled. A fresh sign-in can silently
 #   reinstall dozens of your own previously-used apps; see the "Watch out
 #   for Google Play auto-restore on a fresh flash" section in
-#   docs/stock-applications.md. This script only ever touches the 26
-#   packages below, but a bloated `packages-before` snapshot is a sign you
+#   docs/stock-applications.md. This script only ever touches the 26 core
+#   packages below plus the optional Stage 4 batch (docs/debloat.md,
+#   section 14), but a bloated `packages-before` snapshot is a sign you
 #   should re-check what "stock" actually means on your device first.
 # - Requires exactly one authorized `adb` device reporting product cancunf.
 # - Pauses for confirmation between stages so you can test the phone in
@@ -78,6 +79,24 @@ STAGE3=(
     com.google.android.apps.photos
 )
 
+# Stage 4 (optional): casual games and other junk observed appearing after
+# Google sign-in on the tested device - NOT guaranteed present on every
+# phone (depends on the signed-in account and/or Motorola's regional
+# bundled-app promotions, not the firmware). See docs/debloat.md, section
+# 14. Each package is checked for presence before removal is attempted.
+STAGE4_NAME="Stage 4 (optional): post-Google-sign-in bundled/junk apps"
+STAGE4=(
+    ball.sort.puzzle.color.sorting.bubble.games
+    com.block.juggle
+    com.king.candycrushsaga
+    com.nebula.mahjongtile
+    com.vitastudio.mahjong
+    com.oakever.tiletrip
+    com.oakever.arrows
+    ringtonesforandroidphonefree.ringtones.ringtonessongs.ringtonesapp
+    com.motorola.lmsaappclient
+)
+
 die() {
     printf '\nSTOPPED: %s\n' "$*" >&2
     exit 1
@@ -132,6 +151,42 @@ remove_stage() {
     done
 }
 
+is_installed() {
+    local pkg="$1"
+    adb shell pm list packages "$pkg" 2>/dev/null | tr -d '\r' | grep -qx "package:${pkg}"
+}
+
+remove_stage_if_present() {
+    # Like remove_stage, but for packages that are not guaranteed to exist
+    # on every phone (Stage 4): checks presence first and logs a SKIPPED
+    # entry instead of attempting - and failing - an uninstall of
+    # something that was never there.
+    local name="$1"; shift
+    local pkgs=("$@")
+    banner "$name"
+
+    for pkg in "${pkgs[@]}"; do
+        if ! is_installed "$pkg"; then
+            printf '+ pm uninstall --user 0 %s ... SKIPPED (not installed)\n' "$pkg"
+            printf 'SKIPPED  %s (not installed)\n' "$pkg" >> "$LOG_DIR/removal-results.txt"
+            continue
+        fi
+
+        printf '+ pm uninstall --user 0 %s ... ' "$pkg"
+        local out rc=0
+        out="$(adb shell pm uninstall --user 0 "$pkg" 2>&1)" || rc=$?
+        out="$(printf '%s' "$out" | tr -d '\r')"
+
+        if [[ "$rc" -eq 0 ]] && printf '%s' "$out" | grep -qi 'success'; then
+            printf 'OK\n'
+            printf 'OK       %s\n' "$pkg" >> "$LOG_DIR/removal-results.txt"
+        else
+            printf 'FAILED (%s)\n' "$out"
+            printf 'FAILED   %s (%s)\n' "$pkg" "$out" >> "$LOG_DIR/removal-results.txt"
+        fi
+    done
+}
+
 banner "Moto G54 5G debloat preflight"
 
 command -v adb >/dev/null 2>&1 || die "adb is not installed or not in PATH."
@@ -165,12 +220,22 @@ apps" feature reinstalled your previous app history after a fresh flash
 and Google sign-in. See docs/stock-applications.md, "Watch out for
 Google Play auto-restore on a fresh flash", before assuming every
 third-party package in $LOG_DIR/packages-third-party-before.txt is
-stock. This script only removes the 26 packages listed below regardless.
+stock. This script only ever removes the packages listed below,
+regardless of what else shows up in that snapshot.
 EOF
 fi
 
-banner "Packages this script will remove (26 total, user 0 only)"
+banner "Core packages this script will remove (26 total, user 0 only)"
 printf '%s\n' "${STAGE1[@]}" "${STAGE2[@]}" "${STAGE3[@]}"
+
+banner "Optional Stage 4 packages (removed only if actually present)"
+printf '%s\n' "${STAGE4[@]}"
+cat <<'EOF'
+
+These are not part of the stock firmware and are not guaranteed present
+on your phone - see docs/debloat.md, section 14. Each is checked before
+any removal is attempted.
+EOF
 
 cat <<'EOF'
 
@@ -191,6 +256,10 @@ checkpoint "Stage 2 complete. Next: promotional Motorola packages and Meta helpe
 
 remove_stage "$STAGE3_NAME" "${STAGE3[@]}"
 
+checkpoint "Stage 3 complete. Next: optional post-Google-sign-in bundled/junk apps (only removed if present)."
+
+remove_stage_if_present "$STAGE4_NAME" "${STAGE4[@]}"
+
 banner "Capturing after-state snapshot"
 snapshot "after"
 
@@ -198,11 +267,13 @@ diff -u "$LOG_DIR/packages-before.txt" "$LOG_DIR/packages-after.txt" > "$LOG_DIR
 
 FAILED_COUNT="$(grep -c '^FAILED' "$LOG_DIR/removal-results.txt" || true)"
 OK_COUNT="$(grep -c '^OK' "$LOG_DIR/removal-results.txt" || true)"
+SKIPPED_COUNT="$(grep -c '^SKIPPED' "$LOG_DIR/removal-results.txt" || true)"
 
 banner "DEBLOAT RUN COMPLETE"
 cat <<EOF
 Removed successfully: $OK_COUNT
-Failed / already absent: $FAILED_COUNT
+Failed: $FAILED_COUNT
+Skipped (Stage 4 packages not present on this phone): $SKIPPED_COUNT
 
 Full results: $LOG_DIR/removal-results.txt
 Before/after snapshots and diff: $LOG_DIR/

@@ -15,7 +15,7 @@ The guiding rule was simple: remove promotional or genuinely unwanted applicatio
 
 **Before you start:** if you have already signed into a Google account on this flash, your `packages-before` snapshot can include dozens of your own previously-installed apps that Google Play silently reinstalled, not anything from the firmware. See [`stock-applications.md`, "Watch out for Google Play auto-restore on a fresh flash"](stock-applications.md#watch-out-for-google-play-auto-restore-on-a-fresh-flash) before treating every package in that snapshot as stock. It does not change which packages get removed below — the removal list here is fixed and does not touch third-party/personal apps — but it matters if you are deciding whether to remove anything *beyond* this list on your own device.
 
-An automated script that performs the exact removal batches below, with its own logging, is described in [section 14](#14-automated-script). The manual steps that follow remain the documented reasoning for each decision.
+An automated script that performs the exact removal batches below, with its own logging, is described in [section 15](#15-automated-script). The manual steps that follow remain the documented reasoning for each decision.
 
 ## 1. Capture the stock state first
 
@@ -335,20 +335,66 @@ Check the result:
 adb shell pm list packages com.google.android.apps.photos
 ```
 
-## 14. Automated script
+## 14. Optional: post-Google-sign-in bundled/junk apps (verify before running)
 
-[`debloat-cancunf.sh`](../debloat-cancunf.sh) automates the three removal batches documented above (sections 5, 7 and 8 — 26 packages in total, in the same order) plus the before/after snapshotting and comparison from sections 1 and 12.
+Sections 5, 7 and 8 remove packages that are part of every install of this stock firmware. This section is different: comparing successive post-flash, post-Google-sign-in `packages-before` snapshots on the tested device against the documented 403-package stock baseline (see the auto-restore note above) turned up a small set of packages that are neither stock firmware nor apps the device's owner intentionally installed — the same seven casual games appeared consistently across separate restore sessions on the same account:
+
+```text
+ball.sort.puzzle.color.sorting.bubble.games
+com.block.juggle
+com.king.candycrushsaga
+com.nebula.mahjongtile
+com.vitastudio.mahjong
+com.oakever.tiletrip
+com.oakever.arrows
+```
+
+Two more packages were judged the same way and added on the device owner's decision:
+
+```text
+ringtonesforandroidphonefree.ringtones.ringtonessongs.ringtonesapp
+com.motorola.lmsaappclient
+```
+
+`ringtonesforandroidphonefree...` is a generic free-ringtones app matching the same spam-adjacent partner-junk pattern as `com.taboola.mip` (section 5). `com.motorola.lmsaappclient` is a Motorola-branded "Smart Assistant" client — not a game, and its exact purpose was not independently investigated, but it was absent from the stock 403-package snapshot the same way the games were.
+
+**Unlike sections 5, 7 and 8, this batch is not guaranteed present on every device.** Whether these specific packages appear depends on the signed-in Google account's own app/restore history and/or Motorola's region-specific bundled-app promotions, not the firmware itself. Check what's actually present before removing anything:
+
+```bash
+adb shell pm list packages | grep -E 'ball\.sort\.puzzle|block\.juggle|candycrushsaga|nebula\.mahjongtile|vitastudio\.mahjong|oakever\.tiletrip|oakever\.arrows|ringtonesforandroidphonefree|motorola\.lmsaappclient'
+```
+
+Remove only what's confirmed present:
+
+```bash
+adb shell pm uninstall --user 0 ball.sort.puzzle.color.sorting.bubble.games
+adb shell pm uninstall --user 0 com.block.juggle
+adb shell pm uninstall --user 0 com.king.candycrushsaga
+adb shell pm uninstall --user 0 com.nebula.mahjongtile
+adb shell pm uninstall --user 0 com.vitastudio.mahjong
+adb shell pm uninstall --user 0 com.oakever.tiletrip
+adb shell pm uninstall --user 0 com.oakever.arrows
+adb shell pm uninstall --user 0 ringtonesforandroidphonefree.ringtones.ringtonessongs.ringtonesapp
+adb shell pm uninstall --user 0 com.motorola.lmsaappclient
+```
+
+`debloat-cancunf.sh` runs this as its own separate, clearly-labeled Stage 4 (see [section 15](#15-automated-script)) — kept apart from the core 26-package removal precisely because it is account/region-specific rather than guaranteed stock, and the script checks each package's presence before attempting to remove it.
+
+## 15. Automated script
+
+[`debloat-cancunf.sh`](../debloat-cancunf.sh) automates the three core removal batches documented above (sections 5, 7 and 8 — 26 packages in total, in the same order), the optional post-Google-sign-in batch from section 14, plus the before/after snapshotting and comparison from sections 1 and 12.
 
 It is guarded the same way as the firmware flashers in this repository:
 
 - refuses to run unless exactly one authorized `adb` device is connected and reports `ro.product.device` as `cancunf`;
 - prints the full list of packages it is about to remove and requires typing `YES` before doing anything;
-- pauses after each of the three batches so you can reboot and manually test the phone before continuing, exactly as this document recommends;
+- pauses after each batch so you can reboot and manually test the phone before continuing, exactly as this document recommends;
 - captures `pm list packages`, `-f`, `-d` and `-3` snapshots before and after into a timestamped `debloat-logs/<timestamp>/` directory, along with a `diff -u` between the before/after package lists and a per-package OK/FAILED result log;
 - warns (without stopping) if the before-snapshot package count is higher than this project's documented 403-package stock baseline, pointing at the Google Play auto-restore note above, since that is a sign the device's third-party package list may include your own apps rather than firmware;
-- treats a single failed `pm uninstall` as non-fatal — it is logged and reported at the end rather than aborting the run, since a genuinely bad removal is reversible with `adb shell cmd package install-existing` and the point of this project is inspection, not blind automation.
+- treats a single failed `pm uninstall` as non-fatal — it is logged and reported at the end rather than aborting the run, since a genuinely bad removal is reversible with `adb shell cmd package install-existing` and the point of this project is inspection, not blind automation;
+- for the section 14 batch specifically, checks each package is actually installed before attempting to remove it, since that batch is not guaranteed present the way the core 26 are.
 
-It only ever touches the same 26 packages documented in this file. It does not remove `com.amazon.appmanager` or `com.orange.aura.oobe` (both were already disabled on the tested device, per section 9) and it does not touch any third-party/personal app.
+It does not remove `com.amazon.appmanager` or `com.orange.aura.oobe` (both were already disabled on the tested device, per section 9) and it does not touch any other third-party/personal app.
 
 Recommended invocation:
 
