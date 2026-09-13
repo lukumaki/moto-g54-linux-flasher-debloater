@@ -52,6 +52,16 @@ The Motorola Software Fix XML uses the **same partition/erase sequence and the s
 
 Do **not** rename one firmware build and use the other build's script. The scripts deliberately check the build recorded in `flashfile.xml` before allowing flashing to continue.
 
+### `servicefile.xml`: a repair flash that preserves user data
+
+Motorola's Software Fix package for `V1TDS35H.83-20-5-8-4` also ships a **`servicefile.xml`**, alongside `flashfile.xml`. It is the exact same build's flash sequence with three steps removed: it does not erase `userdata`, does not erase `metadata`, and does not flash `efuseBackup`. Everywhere else — GPT, preloader, core firmware, all 22 `super` sparse chunks, the `debug_token` erase, and the `fb_mode`/`config` cleanup — is identical.
+
+That makes it a repair/service reflash intended to fix firmware or system corruption, a bad boot, or a failed OTA **without** wiping the user's data — as opposed to `flashfile.xml`, which is a full factory restore.
+
+- [`flash-service-cancunf-V1TDS35H-83-20-5-8-4.sh`](flash-service-cancunf-V1TDS35H-83-20-5-8-4.sh) — the guarded counterpart for `servicefile.xml`. Run it from a directory containing `servicefile.xml` (not `flashfile.xml`).
+
+**Compatibility caveat:** preserving `userdata`/`metadata` while reflashing system images is only safe when the firmware you reflash is compatible with the encryption state already on the phone — `metadata` holds the file-based-encryption policy/keys tied to `userdata`, which is why the two are only ever skipped together. Don't use the service flasher across an Android version, CID or region change. If in doubt, use the full stock flasher and expect a factory reset.
+
 ## What this project covers
 
 - Reassembling Motorola split firmware archives (`.001`, `.002`, ...)
@@ -325,6 +335,7 @@ The flashers are available directly in this repository:
 
 - **Successfully used in the original restore:** [`flash-stock-cancunf-V1TDS35H-83-20-5-12.sh`](https://github.com/lukumaki/moto-g54-linux-flasher-debloater/blob/main/flash-stock-cancunf-V1TDS35H-83-20-5-12.sh)
 - **Motorola Software Fix XT2343-6 / CID 50 build:** [`flash-stock-cancunf-V1TDS35H-83-20-5-8-4.sh`](https://github.com/lukumaki/moto-g54-linux-flasher-debloater/blob/main/flash-stock-cancunf-V1TDS35H-83-20-5-8-4.sh)
+- **Repair/service flash for the same build, preserving user data:** [`flash-service-cancunf-V1TDS35H-83-20-5-8-4.sh`](https://github.com/lukumaki/moto-g54-linux-flasher-debloater/blob/main/flash-service-cancunf-V1TDS35H-83-20-5-8-4.sh) — see [`servicefile.xml`: a repair flash that preserves user data](#servicefilexml-a-repair-flash-that-preserves-user-data). Requires `servicefile.xml`, not `flashfile.xml`.
 
 Copy the script matching **your exact firmware build** into the extracted firmware directory.
 
@@ -342,6 +353,13 @@ chmod +x flash-stock-cancunf-V1TDS35H-83-20-5-8-4.sh
 ./flash-stock-cancunf-V1TDS35H-83-20-5-8-4.sh 2>&1 | tee flash-stock.log
 ```
 
+For a repair/service reflash of the same build that preserves `userdata`/`metadata` (requires `servicefile.xml` in the same directory):
+
+```bash
+chmod +x flash-service-cancunf-V1TDS35H-83-20-5-8-4.sh
+./flash-service-cancunf-V1TDS35H-83-20-5-8-4.sh 2>&1 | tee flash-service.log
+```
+
 Using `tee` is recommended. It leaves a complete host-side log that can be reviewed before rebooting.
 
 The script deliberately:
@@ -349,7 +367,7 @@ The script deliberately:
 - validates the firmware XML identity first;
 - checks the connected device;
 - verifies every XML-referenced firmware file against its MD5;
-- prints the literal `flashfile.xml` `<step>` that each `fastboot` command corresponds to, warning instead of guessing if a command has no matching step;
+- prints the literal source-XML `<step>` (`flashfile.xml` or `servicefile.xml`) that each `fastboot` command corresponds to, warning instead of guessing if a command has no matching step;
 - pauses before destructive stages;
 - follows Motorola's XML order;
 - stops if a `fastboot` operation fails;
