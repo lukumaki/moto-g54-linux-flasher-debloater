@@ -18,63 +18,6 @@ A Linux-focused, carefully validated workflow for restoring Motorola stock firmw
 
 This is not a theoretical collection of commands. It documents the actual procedure followed on a real Moto G54 5G from **Debian 13 (Trixie)** and the observations made during that restore.
 
-## Firmware builds documented here
-
-The original successful restore documented by this repository used:
-
-```text
-V1TDS35H.83-20-5-12
-Android 15
-Security patch: 2026-07-01
-```
-
-Afterwards, Motorola **Software Fix** was used from a Windows 11 VM to obtain the device-matched firmware package for the tested XT2343-6 / CID 50 handset:
-
-```text
-CANCUNF_G_SYS_V1TDS35H.83_20_5_8_4_subsidy_DEFAULT_regulatory_XT2343_6_cid50_CFC
-```
-
-Its `flashfile.xml` reports:
-
-```text
-model:           cancunf_g_sys
-build:           V1TDS35H.83-20-5-8-4
-CID:             0x0032
-max sparse size: 268435456
-```
-
-`cid50` in the package name is decimal 50, which is hexadecimal `0x32`, matching the XML CID.
-
-The Motorola Software Fix XML uses the **same partition/erase sequence and the same 22 `super` sparse chunks** as the earlier flasher, but its firmware files have different MD5 hashes and it is a different build. For that reason there is now a separate build-specific flasher:
-
-- [`flash-stock-cancunf-V1TDS35H-83-20-5-12.sh`](flash-stock-cancunf-V1TDS35H-83-20-5-12.sh) — the script used in the successful restore documented here.
-- [`flash-stock-cancunf-V1TDS35H-83-20-5-8-4.sh`](flash-stock-cancunf-V1TDS35H-83-20-5-8-4.sh) — generated from the Motorola Software Fix `flashfile.xml` for XT2343-6 / CID 50. It must only be used with that matching firmware package.
-
-Do **not** rename one firmware build and use the other build's script. The scripts deliberately check the build recorded in `flashfile.xml` before allowing flashing to continue.
-
-### `servicefile.xml`: a repair flash that preserves user data
-
-Motorola's Software Fix package for `V1TDS35H.83-20-5-8-4` also ships a **`servicefile.xml`**, alongside `flashfile.xml`. It is the exact same build's flash sequence with three steps removed: it does not erase `userdata`, does not erase `metadata`, and does not flash `efuseBackup`. Everywhere else — GPT, preloader, core firmware, all 22 `super` sparse chunks, the `debug_token` erase, and the `fb_mode`/`config` cleanup — is identical.
-
-That makes it a repair/service reflash intended to fix firmware or system corruption, a bad boot, or a failed OTA **without** wiping the user's data — as opposed to `flashfile.xml`, which is a full factory restore.
-
-- [`flash-service-cancunf-V1TDS35H-83-20-5-8-4.sh`](flash-service-cancunf-V1TDS35H-83-20-5-8-4.sh) — the guarded counterpart for `servicefile.xml`. Run it from a directory containing `servicefile.xml` (not `flashfile.xml`).
-
-**Compatibility caveat:** preserving `userdata`/`metadata` while reflashing system images is only safe when the firmware you reflash is compatible with the encryption state already on the phone — `metadata` holds the file-based-encryption policy/keys tied to `userdata`, which is why the two are only ever skipped together. Don't use the service flasher across an Android version, CID or region change. If in doubt, use the full stock flasher and expect a factory reset.
-
-**Field-confirmed on real hardware:** run on the tested device with the bootloader locked (`securestate: flashing_locked`; see [Before you start](#before-you-start-developer-options-unlocking-and-relocking)). Every fastboot step completed with `OKAY`, the phone rebooted successfully, and post-boot verification showed:
-
-```text
-adb shell getprop ro.build.fingerprint
-motorola/cancunf_g_sysenq/cancunf:15/V1TDS35H.83-20-5-8-4/d3b29e-8d7d82:user/release-keys
-adb shell getprop ro.build.version.security_patch
-2026-07-01
-adb shell getprop ro.boot.verifiedbootstate
-green
-```
-
-`verifiedbootstate: green` means Android's verified boot chain validated the flashed images against Motorola's own signing keys — independent, boot-time confirmation (not just a fastboot `OKAY`) that the service flash succeeded correctly while the bootloader stayed locked throughout.
-
 ## What this project covers
 
 - Reassembling Motorola split firmware archives (`.001`, `.002`, ...)
@@ -82,7 +25,7 @@ green
 - Reading and inspecting Motorola's `flashfile.xml` rather than guessing a flash sequence
 - Verifying model, CID, current slot and sparse-image capability
 - Independently verifying firmware files against the MD5 checksums supplied in `flashfile.xml`
-- Flashing the exact XML sequence from Linux with `fastboot`
+- Flashing the exact XML sequence from Linux with `fastboot` — without needing an unlocked bootloader, Developer options, OEM unlocking, or USB debugging (see [Before you start](#before-you-start-developer-options-unlocking-and-relocking))
 - Stopping safely on errors and preserving Motorola `fb_mode` for inspection
 - Reviewing non-fatal messages seen during a successful real flash
 - Booting and verifying stock Android before attempting a bootloader relock
@@ -94,69 +37,21 @@ green
 - Keeping the screen awake during long ADB/app-install sessions
 - Reinstalling large application lists through Google Play using package names
 
-## Test environment
-
-The procedure documented here was performed from:
-
-```text
-Host OS: Debian GNU/Linux 13 (Trixie)
-Device: Motorola Moto G54 5G
-Codename: cancunf
-Android: 15
-```
-
-ADB and Fastboot were run directly from the Debian host.
-
-## Important warning
-
-**Flashing firmware can permanently brick a device if the firmware, model, CID or partition sequence is wrong.**
-
-The included flashers are intentionally build-specific and perform destructive operations including erasing `nvdata`, `userdata`, `metadata` and `debug_token`, because those operations are present in Motorola's own `flashfile.xml`.
-
-Do not treat a script written for one firmware as a generic Motorola flasher. Read the script and your own `flashfile.xml` before running anything.
-
-This repository intentionally does **not** include Motorola firmware images.
-
-## Requirements
-
-On Debian 13 or another Linux distribution, the workflow expects:
-
-- `adb`
-- `fastboot`
-- `python3`
-- `unzip`
-- standard GNU shell utilities (`cat`, `grep`, `sed`, `sort`, `md5sum`, etc.)
-
-Example package installation on Debian:
-
-```bash
-sudo apt update
-sudo apt install adb fastboot python3 unzip
-```
-
-On the phone:
-
-- Moto G54 5G (`cancunf`)
-- correct firmware for that device/region/CID
-- bootloader unlocked for the flashing stage — except on this device's MediaTek bootloader when flashing Motorola's own officially signed firmware, where a locked bootloader was confirmed to still work; see [Before you start](#before-you-start-developer-options-unlocking-and-relocking)
-- sufficient battery charge
-- reliable USB cable/port
-
 ## Before you start: Developer options, unlocking, and relocking
 
-The steps below get a stock phone into the state most people should aim for before using this repository: Developer options enabled, `fastboot` working, and the bootloader unlocked. Unlocking itself was not part of the originally documented restore and its own output was not captured here, so treat the unlock commands below as the standard Motorola/Android procedure rather than something independently re-verified on the tested device. Re-locking (Part I, step 11 and [`docs/relock-bootloader.md`](docs/relock-bootloader.md)) *was* captured on the tested device.
+**If you're recovering a phone that won't boot at all (bricked), read this first:** flashing the ROM with this repository's scripts needs none of Developer options, OEM unlocking, USB debugging, or an unlocked bootloader. Fastboot/bootloader mode is reachable with the phone powered off via **Volume Down + Power**, entirely independent of whether Android boots or whether any of those settings were ever turned on. This was field-confirmed on the tested device: `flash-service-cancunf.sh` completed a full flash and successful reboot with the bootloader still *locked* (`securestate: flashing_locked`, no Developer options or USB debugging enabled at all), confirmed afterward by `ro.boot.verifiedbootstate: green` — not just fastboot returning `OKAY`. See the explanation after step 4 below for why, and its limits.
 
-**Update from real-world testing:** on this device's MediaTek bootloader, `flash-service-cancunf-V1TDS35H-83-20-5-8-4.sh` completed a full flash and successful reboot with the bootloader still *locked* (`securestate: flashing_locked`) — confirmed by `ro.boot.verifiedbootstate: green` after boot, not just fastboot returning `OKAY` — because these scripts only flash Motorola's own officially signed, CID-matching firmware. See the callout after step 4 before assuming you must unlock first.
+Developer options, OEM unlocking, and USB debugging only matter for what comes **after** a successful flash and reboot: verifying the restored system, debloating (Part II), and reinstalling apps (Part III) are all `adb`-based and need a booted phone with USB debugging enabled. The steps below cover getting there, plus how to unlock the bootloader if you separately want or need to (for custom-ROM work, for instance), and how to relock afterward.
 
 ### 1. Enable Developer options
 
-On the phone: **Settings → About phone → tap "Build number" 7 times.** "Developer options" then appears under **Settings → System**.
+On the phone: **Settings → About phone → tap "Build number" 7 times.** "Developer options" then appears under **Settings → System**. Not needed for flashing itself — see above.
 
 ### 2. Enable OEM unlocking and USB debugging
 
 Inside Developer options, enable both:
 
-- **OEM unlocking** — required before `fastboot` will accept an unlock command at all. On Motorola devices this can require an active SIM/internet connection and a signed-in Google account the first time, since the toggle itself may need to phone home to confirm the device is eligible.
+- **OEM unlocking** — required before `fastboot` will accept an unlock *command*, if you choose to unlock (step 5). On Motorola devices this can require an active SIM/internet connection and a signed-in Google account the first time, since the toggle itself may need to phone home to confirm the device is eligible. Not required to flash `flashfile.xml`/`servicefile.xml` with this repository's scripts.
 - **USB debugging** — required for every `adb`-based step in this repository (all of Part II/III, the verification commands in Part I, and `debloat-cancunf.sh`). It is **not** required for `fastboot`/flashing itself, since fastboot talks to the bootloader directly, before Android boots.
 
 When you plug in and run `adb devices` for the first time, accept the "Allow USB debugging?" prompt on the phone screen; otherwise the host is not authorized and every `adb` command in this repository will fail.
@@ -169,7 +64,7 @@ Either:
 adb reboot bootloader
 ```
 
-(requires USB debugging and an already-authorized host), or hold **Volume Down + Power** while the phone is off (no ADB required — useful if Android does not boot).
+(requires USB debugging and an already-authorized host, so only works on a phone that already boots), or hold **Volume Down + Power** while the phone is off — no ADB, no Developer options, no working Android required. This is the way in for a phone that won't boot.
 
 ### 4. Check whether the bootloader is locked
 
@@ -212,6 +107,114 @@ fastboot oem lock
 ```
 
 Do this only after the restored stock system has booted and been checked — not immediately after flashing.
+
+## Important warning
+
+**Flashing firmware can permanently brick a device if the firmware, model, CID or partition sequence is wrong.**
+
+The included flashers perform destructive operations including erasing `nvdata`, `userdata`, `metadata` and `debug_token` (`flash-stock-cancunf.sh`) or `nvdata`/`debug_token` only (`flash-service-cancunf.sh`), because those operations are present in Motorola's own `flashfile.xml`/`servicefile.xml`.
+
+These scripts are specific to the Moto G54 5G (`cancunf`) and its CID `0x0032`, and they no longer pin one specific firmware build — they trust that your `flashfile.xml`/`servicefile.xml` has the same step sequence already confirmed on two real Motorola packages (see [Firmware builds documented here](#firmware-builds-documented-here)). Every hardcoded command is still cross-checked against your actual XML at runtime and will print a `WARNING` rather than silently mismatching (see `print_xml_step` in [Run the guarded flasher](#7-run-the-guarded-flasher)) — read those warnings before trusting a run against firmware this hasn't been exercised against. Do not treat these as a generic Motorola flasher for a different device, region, or CID. Read the script and your own XML before running anything.
+
+This repository intentionally does **not** include Motorola firmware images.
+
+## Requirements
+
+On Debian 13 or another Linux distribution, the workflow expects:
+
+- `adb`
+- `fastboot`
+- `python3`
+- `unzip`
+- standard GNU shell utilities (`cat`, `grep`, `sed`, `sort`, `md5sum`, etc.)
+
+Example package installation on Debian:
+
+```bash
+sudo apt update
+sudo apt install adb fastboot python3 unzip
+```
+
+On the phone:
+
+- Moto G54 5G (`cancunf`)
+- correct firmware for that device/region/CID (see [Firmware builds documented here](#firmware-builds-documented-here) for how to get it)
+- for flashing (Part I): none of a bootloader unlock, Developer options, OEM unlocking or USB debugging — see [Before you start](#before-you-start-developer-options-unlocking-and-relocking)
+- for everything after a successful flash (Part I verification, Part II, Part III): USB debugging enabled, since those steps are `adb`-based
+- sufficient battery charge
+- reliable USB cable/port
+
+## Firmware builds documented here
+
+The original successful restore documented by this repository used:
+
+```text
+V1TDS35H.83-20-5-12
+Android 15
+Security patch: 2026-07-01
+```
+
+Afterwards, Motorola **Software Fix** was used from a Windows 11 VM to obtain the device-matched firmware package for the tested XT2343-6 / CID 50 handset:
+
+```text
+CANCUNF_G_SYS_V1TDS35H.83_20_5_8_4_subsidy_DEFAULT_regulatory_XT2343_6_cid50_CFC
+```
+
+Its `flashfile.xml` reports:
+
+```text
+model:           cancunf_g_sys
+build:           V1TDS35H.83-20-5-8-4
+CID:             0x0032
+max sparse size: 268435456
+```
+
+`cid50` in the package name is decimal 50, which is hexadecimal `0x32`, matching the XML CID.
+
+**Getting your own firmware:** Motorola Software Fix (Windows) is the straightforward way to obtain a firmware package for this device. Point it at the phone (connected via USB, or by entering its model/serial) and it identifies and downloads the exact CID/region-matched package Motorola currently associates with that handset — including both `flashfile.xml` and `servicefile.xml`, ready to use directly with the scripts in this repository. This is particularly relevant if you're recovering a phone that won't boot: Software Fix can look the device up and fetch the right package without needing the phone to be in a working state beyond fastboot/bootloader mode.
+
+The Motorola Software Fix XML uses the **same partition/erase sequence and the same 22 `super` sparse chunks** as the original build documented here, only with different firmware file MD5 hashes. Because that sequence has now been confirmed identical across two real Motorola packages, the flashers in this repository are **not** pinned to one specific build string:
+
+- [`flash-stock-cancunf.sh`](flash-stock-cancunf.sh) — full factory restore from `flashfile.xml`. Used (in its earlier, build-pinned form) in the original successful restore documented here, and confirmed again against the `V1TDS35H.83-20-5-8-4` package.
+- [`flash-service-cancunf.sh`](flash-service-cancunf.sh) — repair/service reflash from `servicefile.xml`, preserving user data. See the next section.
+
+Both scripts still verify phone model, CID and sparse size against your `flashfile.xml`/`servicefile.xml`, and cross-check every hardcoded `fastboot` command against a real `<step>` in that file at runtime, warning rather than silently mismatching if your firmware's actual sequence ever differs (see [Important warning](#important-warning)).
+
+### `servicefile.xml`: a repair flash that preserves user data
+
+Motorola's Software Fix package for `V1TDS35H.83-20-5-8-4` also ships a **`servicefile.xml`**, alongside `flashfile.xml`. It is the exact same build's flash sequence with three steps removed: it does not erase `userdata`, does not erase `metadata`, and does not flash `efuseBackup`. Everywhere else — GPT, preloader, core firmware, all 22 `super` sparse chunks, the `debug_token` erase, and the `fb_mode`/`config` cleanup — is identical.
+
+That makes it a repair/service reflash intended to fix firmware or system corruption, a bad boot, or a failed OTA **without** wiping the user's data — as opposed to `flashfile.xml`, which is a full factory restore.
+
+- [`flash-service-cancunf.sh`](flash-service-cancunf.sh) — the guarded counterpart for `servicefile.xml`. Run it from a directory containing `servicefile.xml` (not `flashfile.xml`).
+
+**Compatibility caveat:** preserving `userdata`/`metadata` while reflashing system images is only safe when the firmware you reflash is compatible with the encryption state already on the phone — `metadata` holds the file-based-encryption policy/keys tied to `userdata`, which is why the two are only ever skipped together. Don't use the service flasher across an Android version, CID or region change. If in doubt, use the full stock flasher and expect a factory reset.
+
+**Field-confirmed on real hardware:** run on the tested device with the bootloader locked (`securestate: flashing_locked`; see [Before you start](#before-you-start-developer-options-unlocking-and-relocking)). Every fastboot step completed with `OKAY`, the phone rebooted successfully, and post-boot verification showed:
+
+```text
+adb shell getprop ro.build.fingerprint
+motorola/cancunf_g_sysenq/cancunf:15/V1TDS35H.83-20-5-8-4/d3b29e-8d7d82:user/release-keys
+adb shell getprop ro.build.version.security_patch
+2026-07-01
+adb shell getprop ro.boot.verifiedbootstate
+green
+```
+
+`verifiedbootstate: green` means Android's verified boot chain validated the flashed images against Motorola's own signing keys — independent, boot-time confirmation (not just a fastboot `OKAY`) that the service flash succeeded correctly while the bootloader stayed locked throughout.
+
+## Test environment
+
+The procedure documented here was performed from:
+
+```text
+Host OS: Debian GNU/Linux 13 (Trixie)
+Device: Motorola Moto G54 5G
+Codename: cancunf
+Android: 15
+```
+
+ADB and Fastboot were run directly from the Debian host.
 
 ---
 
@@ -313,7 +316,6 @@ PY
 Before using a flasher, check specifically that:
 
 - the model is your `cancunf` variant;
-- the build is the build for which the script was written;
 - the CID matches the phone;
 - `max-sparse-size` is what the script expects;
 - the partition order in the script follows the XML;
@@ -417,41 +419,33 @@ This check is especially important because different Motorola builds use differe
 
 The flashers are available directly in this repository:
 
-- **Successfully used in the original restore:** [`flash-stock-cancunf-V1TDS35H-83-20-5-12.sh`](https://github.com/lukumaki/moto-g54-linux-flasher-debloater/blob/main/flash-stock-cancunf-V1TDS35H-83-20-5-12.sh)
-- **Motorola Software Fix XT2343-6 / CID 50 build:** [`flash-stock-cancunf-V1TDS35H-83-20-5-8-4.sh`](https://github.com/lukumaki/moto-g54-linux-flasher-debloater/blob/main/flash-stock-cancunf-V1TDS35H-83-20-5-8-4.sh)
-- **Repair/service flash for the same build, preserving user data:** [`flash-service-cancunf-V1TDS35H-83-20-5-8-4.sh`](https://github.com/lukumaki/moto-g54-linux-flasher-debloater/blob/main/flash-service-cancunf-V1TDS35H-83-20-5-8-4.sh) — see [`servicefile.xml`: a repair flash that preserves user data](#servicefilexml-a-repair-flash-that-preserves-user-data). Requires `servicefile.xml`, not `flashfile.xml`.
+- [`flash-stock-cancunf.sh`](https://github.com/lukumaki/moto-g54-linux-flasher-debloater/blob/main/flash-stock-cancunf.sh) — full factory restore from `flashfile.xml`.
+- [`flash-service-cancunf.sh`](https://github.com/lukumaki/moto-g54-linux-flasher-debloater/blob/main/flash-service-cancunf.sh) — repair/service reflash from `servicefile.xml`, preserving user data. See [`servicefile.xml`: a repair flash that preserves user data](#servicefilexml-a-repair-flash-that-preserves-user-data).
 
-Copy the script matching **your exact firmware build** into the extracted firmware directory.
+Both are generic across builds of this exact device/CID rather than pinned to one firmware version (see [Firmware builds documented here](#firmware-builds-documented-here)) — copy whichever matches your firmware type (`flashfile.xml` for a full restore, `servicefile.xml` to preserve data) into the extracted firmware directory.
 
-For the original `V1TDS35H.83-20-5-12` build:
+For a full factory restore:
 
 ```bash
-chmod +x flash-stock-cancunf-V1TDS35H-83-20-5-12.sh
-./flash-stock-cancunf-V1TDS35H-83-20-5-12.sh 2>&1 | tee flash-stock.log
+chmod +x flash-stock-cancunf.sh
+./flash-stock-cancunf.sh 2>&1 | tee flash-stock.log
 ```
 
-For the Motorola Software Fix `V1TDS35H.83-20-5-8-4` build:
+For a repair/service reflash that preserves `userdata`/`metadata` (requires `servicefile.xml` in the same directory):
 
 ```bash
-chmod +x flash-stock-cancunf-V1TDS35H-83-20-5-8-4.sh
-./flash-stock-cancunf-V1TDS35H-83-20-5-8-4.sh 2>&1 | tee flash-stock.log
-```
-
-For a repair/service reflash of the same build that preserves `userdata`/`metadata` (requires `servicefile.xml` in the same directory):
-
-```bash
-chmod +x flash-service-cancunf-V1TDS35H-83-20-5-8-4.sh
-./flash-service-cancunf-V1TDS35H-83-20-5-8-4.sh 2>&1 | tee flash-service.log
+chmod +x flash-service-cancunf.sh
+./flash-service-cancunf.sh 2>&1 | tee flash-service.log
 ```
 
 Using `tee` is recommended. It leaves a complete host-side log that can be reviewed before rebooting.
 
 The script deliberately:
 
-- validates the firmware XML identity first;
+- validates the firmware XML identity (model, CID, sparse size) first;
 - checks the connected device, including reporting bootloader lock state (informational, not a hard block — see [Before you start](#before-you-start-developer-options-unlocking-and-relocking) for why a locked bootloader can still succeed here);
 - verifies every XML-referenced firmware file against its MD5;
-- prints the literal source-XML `<step>` (`flashfile.xml` or `servicefile.xml`) that each `fastboot` command corresponds to, warning instead of guessing if a command has no matching step;
+- prints the literal source-XML `<step>` (`flashfile.xml` or `servicefile.xml`) that each `fastboot` command corresponds to, warning instead of guessing if a command has no matching step — this is the main safety net now that the script isn't pinned to one build string;
 - pauses before destructive stages;
 - follows Motorola's XML order;
 - stops if a `fastboot` operation fails;
@@ -460,23 +454,11 @@ The script deliberately:
 
 That last point is intentional: a relock should happen only after the restored stock system has booted successfully.
 
-### Why the newer firmware needed a separate script
+### Why the scripts don't pin a specific build
 
-The Motorola Software Fix XML confirms that `V1TDS35H.83-20-5-8-4` has the same model (`cancunf_g_sys`), CID (`0x0032`), sparse size, partition sequence, erase operations and 22-super-chunk layout as the earlier script.
+The Motorola Software Fix XML for `V1TDS35H.83-20-5-8-4` was confirmed to have the same model (`cancunf_g_sys`), CID (`0x0032`), sparse size, partition sequence, erase operations and 22-super-chunk layout as the original `V1TDS35H.83-20-5-12` restore documented here — only the firmware files' MD5 hashes and the exact build string differ. Since the fastboot sequence itself has now held steady across two independently confirmed real Motorola packages, both scripts here check `phone_model`/CID/sparse-size rather than an exact build string, trusting `print_xml_step`'s per-command cross-check (above) to flag it if a future firmware's actual XML ever diverges from the hardcoded sequence.
 
-Therefore the core fastboot sequence did **not** need redesigning. However, the old script deliberately contained:
-
-```bash
-EXPECTED_BUILD="V1TDS35H.83-20-5-12"
-```
-
-and would correctly refuse the newer XML. The new script changes the build guard to:
-
-```bash
-EXPECTED_BUILD="V1TDS35H.83-20-5-8-4"
-```
-
-The MD5 values themselves are **not hard-coded in either script**. They are read dynamically from the `flashfile.xml` located beside the firmware images, which means each script verifies the hashes supplied with its matching Motorola package.
+The MD5 values themselves are **not hard-coded in either script**. They are read dynamically from the `flashfile.xml`/`servicefile.xml` located beside the firmware images, which means each script verifies the hashes supplied with whatever Motorola package you point it at.
 
 ## 8. What does `OKAY` / `Success` mean?
 
@@ -542,6 +524,8 @@ See [`docs/relock-bootloader.md`](docs/relock-bootloader.md) for the dedicated n
 ---
 
 # Part II - Conservative debloating
+
+**Reminder:** this entire section is `adb`-based, so USB debugging must be enabled in Developer options (see [Before you start, step 2](#2-enable-oem-unlocking-and-usb-debugging)) before any of it will work — unlike Part I's flashing, which needs none of that.
 
 The debloat was deliberately performed **after** restoring and validating stock Android.
 
@@ -610,13 +594,13 @@ The guarded flasher is intentionally strict: it stops rather than guesses whenev
 
 Install the missing tool (see [Requirements](#requirements)) and re-run the script.
 
-### `flashfile.xml not found. Run this script from the extracted firmware directory.`
+### `flashfile.xml not found` / `servicefile.xml not found`
 
-The script must be copied into and run from the directory that contains `flashfile.xml` and the firmware images, not from wherever it was downloaded to.
+The script must be copied into and run from the directory that contains the matching XML (`flashfile.xml` for `flash-stock-cancunf.sh`, `servicefile.xml` for `flash-service-cancunf.sh`) and the firmware images, not from wherever it was downloaded to.
 
-### `ERROR: XML model mismatch` / `ERROR: XML build mismatch` / `ERROR: XML CID mismatch` / `ERROR: XML max-sparse-size mismatch`
+### `ERROR: XML model mismatch` / `ERROR: XML CID mismatch` / `ERROR: XML max-sparse-size mismatch`
 
-These come from reading `flashfile.xml` itself, before the phone is even touched. They mean the firmware package you extracted does not match the build the script was written for. Re-check which script matches which firmware, as described in [Firmware builds documented here](#firmware-builds-documented-here). Do not edit the script's `EXPECTED_*` values to force a match — get the correct firmware/script pairing instead.
+These come from reading `flashfile.xml`/`servicefile.xml` itself, before the phone is even touched. They mean the firmware package you extracted is not for this device (`cancunf`) or not for CID `0x0032` — get the correct firmware package instead of editing the script's `EXPECTED_*` values to force a match. This does not check the exact build string (see [Why the scripts don't pin a specific build](#why-the-scripts-dont-pin-a-specific-build)); if your firmware's actual flash sequence differs from what's hardcoded, `print_xml_step` will print a `WARNING` for the affected command instead.
 
 ### `Expected exactly one fastboot device; found 0.` (or more than one)
 
@@ -666,7 +650,7 @@ Users must obtain firmware appropriate for their own device and verify it indepe
 
 # Scope
 
-The flashers in this repository are deliberately conservative and build-specific. Do not assume they are safe for another Moto G54 variant, CID, firmware revision or Motorola model without reviewing that firmware's own `flashfile.xml` and adapting the validation rules and flash sequence if necessary.
+The flashers in this repository are deliberately conservative and specific to this exact device and CID (`cancunf`, `0x0032`) — they are generic across *builds* of that device/CID (confirmed identical flash sequence across two real Motorola packages so far), not across devices, CIDs, or firmware families in general. Do not assume they are safe for another Moto G54 variant, CID, or Motorola model without reviewing that firmware's own `flashfile.xml`/`servicefile.xml` and adapting the validation rules and flash sequence if necessary.
 
 Likewise, the debloat list reflects choices made on the tested device. A package being removable does not mean every user should remove it.
 

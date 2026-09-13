@@ -1,60 +1,50 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-# Motorola Moto G54 5G (cancunf) SERVICE/repair firmware flasher for Linux
-# Derived from Motorola Software Fix firmware:
-#   CANCUNF_G_SYS_V1TDS35H.83_20_5_8_4_subsidy_DEFAULT_regulatory_XT2343_6_cid50_CFC
-# and its servicefile.xml (not flashfile.xml).
+# Motorola Moto G54 5G (cancunf) stock firmware flasher for Linux.
 #
-# WHAT MAKES THIS DIFFERENT FROM flash-stock-cancunf-V1TDS35H-83-20-5-8-4.sh:
-# Motorola's servicefile.xml is the same build's flash sequence with three
-# steps removed compared to flashfile.xml:
-#   - it does NOT erase userdata
-#   - it does NOT erase metadata
-#   - it does NOT flash efuseBackup
-# This is intended as a repair/service reflash (fix firmware/system
-# corruption, a bad boot, a failed OTA) that preserves the user's data,
-# not a factory restore. Every other step (GPT, preloader, core firmware,
-# all 22 super sparse chunks, debug_token erase, fb_mode/config cleanup)
-# is identical to the stock flasher and still runs.
+# Generic across flashfile.xml builds for this exact device/CID: it no
+# longer pins a specific EXPECTED_BUILD string. Confirmed identical
+# partition/erase sequence and 22-super-chunk layout across two real
+# Motorola packages so far (V1TDS35H.83-20-5-12 and V1TDS35H.83-20-5-8-4);
+# see "Firmware builds documented here" in the README. The script still
+# checks phone_model/CID/sparse-size from your flashfile.xml against the
+# connected device, and every fastboot command is looked up against a
+# real <step> in your flashfile.xml at runtime (see print_xml_step
+# below) - if a future/different build's XML doesn't actually contain a
+# step matching one of the hardcoded commands, you get a WARNING, not
+# silence. Read those warnings before trusting a run on firmware this
+# script has not been exercised against.
 #
-# IMPORTANT COMPATIBILITY CAVEAT:
-# Preserving userdata/metadata while reflashing system images is only
-# safe when the firmware you are reflashing is compatible with the data
-# and file-based-encryption (FBE) state already on the phone. metadata
-# holds the encryption policy/keys tied to userdata; they are only
-# skipped together in servicefile.xml because it assumes you are
-# re-flashing onto data that already matches this exact build family.
-# Do not use this on a device you are also changing Android version or
-# CID/region on, and do not use it as a way to "flash and just not
-# mention erasing userdata" on unrelated firmware. If in doubt, use the
-# full stock flasher and expect a factory reset.
-#
-# IMPORTANT (same guarantees as the stock flasher):
-# - Run this script FROM the extracted matching stock firmware directory,
-#   which must contain servicefile.xml (not flashfile.xml).
-# - It intentionally mirrors the flash/erase/oem order in servicefile.xml.
+# IMPORTANT:
+# - Run this script FROM the extracted stock firmware directory,
+#   alongside Motorola's own flashfile.xml.
+# - It intentionally mirrors the flash/erase/oem order in flashfile.xml.
 # - It does NOT relock the bootloader.
 # - It does NOT reboot the phone automatically.
-# - It WILL erase nvdata and debug_token, exactly as servicefile.xml
-#   instructs. It deliberately will NOT erase userdata or metadata.
+# - It WILL erase nvdata, userdata, metadata and debug_token exactly as
+#   Motorola's flashfile.xml instructs. This is the FULL FACTORY RESTORE
+#   variant. For a repair/service reflash that preserves userdata and
+#   metadata, use flash-service-cancunf.sh with servicefile.xml instead.
 # - If a fastboot command fails, the script stops immediately.
-# - This variant was generated from the official Motorola Software Fix
-#   servicefile.xml. Do not use it with another firmware build.
+# - Flashing via fastboot here does NOT require an unlocked bootloader,
+#   Developer options, OEM unlocking, or USB debugging - see the README
+#   section "Before you start: Developer options, unlocking, and
+#   relocking" for what was actually confirmed and why. This matters if
+#   you are recovering a phone that no longer boots to Android at all.
 #
 # Recommended invocation:
-#   chmod +x flash-service-cancunf-V1TDS35H-83-20-5-8-4.sh
-#   ./flash-service-cancunf-V1TDS35H-83-20-5-8-4.sh 2>&1 | tee flash-service.log
+#   chmod +x flash-stock-cancunf.sh
+#   ./flash-stock-cancunf.sh 2>&1 | tee flash-stock.log
 
 EXPECTED_PRODUCT="cancunf"
 EXPECTED_CID="0x0032"
-# servicefile.xml only contains "_a" slot partition images. If current-slot
+# flashfile.xml only contains "_a" slot partition images. If current-slot
 # ever reports "b" (e.g. after an OTA switched the active slot), switch
 # back before running this script:
 #   fastboot set_active a
 EXPECTED_SLOT="a"
 EXPECTED_SPARSE="268435456"
-EXPECTED_BUILD="V1TDS35H.83-20-5-8-4"
 
 FB_MODE_SET=0
 CURRENT_STAGE="preflight"
@@ -138,10 +128,11 @@ bootloader_unlocked_value() {
 }
 
 print_xml_step() {
-    # Looks up and prints the literal <step> in servicefile.xml that this
+    # Looks up and prints the literal <step> in flashfile.xml that this
     # fastboot command corresponds to, so the log shows exactly which
     # Motorola-authored line each command came from. Warns instead of
-    # guessing if no matching step exists.
+    # guessing if no matching step exists - the main safety net now that
+    # this script no longer pins one specific build.
     local op="$1"; shift
     local partition="" filename="" var=""
 
@@ -166,7 +157,7 @@ import sys
 import xml.etree.ElementTree as ET
 
 op, partition, filename, var = sys.argv[1:5]
-root = ET.parse("servicefile.xml").getroot()
+root = ET.parse("flashfile.xml").getroot()
 
 match = None
 for step in root.findall(".//step"):
@@ -186,9 +177,9 @@ for step in root.findall(".//step"):
             break
 
 if match is not None:
-    print("# servicefile.xml: " + ET.tostring(match).decode().strip())
+    print("# flashfile.xml: " + ET.tostring(match).decode().strip())
 else:
-    print(f"# WARNING: no matching <step> found in servicefile.xml for: fastboot {op} {partition or var} {filename}".rstrip())
+    print(f"# WARNING: no matching <step> found in flashfile.xml for: fastboot {op} {partition or var} {filename}".rstrip())
 PY
 }
 
@@ -200,19 +191,19 @@ run_fb() {
     fastboot "$@"
 }
 
-banner "Motorola Moto G54 5G service/repair firmware preflight"
+banner "Motorola Moto G54 5G stock firmware preflight"
 
 command -v fastboot >/dev/null 2>&1 || die "fastboot is not installed or not in PATH."
 command -v python3  >/dev/null 2>&1 || die "python3 is required for XML/MD5 validation."
 
-[[ -f servicefile.xml ]] || die "servicefile.xml not found. Run this script from the extracted firmware directory (it must contain servicefile.xml, not flashfile.xml)."
+[[ -f flashfile.xml ]] || die "flashfile.xml not found. Run this script from the extracted firmware directory."
 
-python3 - "$EXPECTED_PRODUCT" "$EXPECTED_CID" "$EXPECTED_BUILD" <<'PY'
+python3 - "$EXPECTED_PRODUCT" "$EXPECTED_CID" <<'PY'
 import sys
 import xml.etree.ElementTree as ET
 
-expected_product, expected_cid, expected_build = sys.argv[1:4]
-root = ET.parse("servicefile.xml").getroot()
+expected_product, expected_cid = sys.argv[1:3]
+root = ET.parse("flashfile.xml").getroot()
 
 model = root.find("./header/phone_model")
 software = root.find("./header/software_version")
@@ -220,7 +211,7 @@ cid = root.find("./header/cid_value")
 sparse = root.find("./header/sparsing")
 
 if model is None or software is None or cid is None or sparse is None:
-    raise SystemExit("ERROR: servicefile.xml is missing expected Motorola header fields.")
+    raise SystemExit("ERROR: flashfile.xml is missing expected Motorola header fields.")
 
 xml_model = model.get("model", "")
 xml_version = software.get("version", "")
@@ -229,8 +220,6 @@ xml_sparse = sparse.get("max-sparse-size", "")
 
 if not xml_model.startswith(expected_product):
     raise SystemExit(f"ERROR: XML model mismatch: {xml_model!r}")
-if expected_build not in xml_version:
-    raise SystemExit(f"ERROR: XML build mismatch: {xml_version!r}")
 if xml_cid.lower() != expected_cid.lower():
     raise SystemExit(f"ERROR: XML CID mismatch: {xml_cid!r}")
 if xml_sparse != "268435456":
@@ -240,7 +229,7 @@ print(f"XML model:       {xml_model}")
 print(f"XML build:       {xml_version}")
 print(f"XML CID:         {xml_cid}")
 print(f"XML sparse size: {xml_sparse}")
-print("XML identity check: OK")
+print("XML identity check: OK (build string not pinned - see print_xml_step warnings below for step-level verification)")
 PY
 
 mapfile -t FB_DEVICES < <(fastboot devices | awk 'NF >= 2 && $2 == "fastboot" {print $1}')
@@ -288,14 +277,14 @@ elif [[ -z "$UNLOCKED" ]]; then
     printf 'Proceeding anyway - if the next fastboot command fails with something like "not allowed in locked state", unlock the bootloader first (see the README).\n'
 fi
 
-banner "Verify every firmware file against servicefile.xml"
+banner "Verify every firmware file against flashfile.xml"
 
 python3 <<'PY'
 import hashlib
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-root = ET.parse("servicefile.xml").getroot()
+root = ET.parse("flashfile.xml").getroot()
 checked = 0
 errors = 0
 
@@ -330,12 +319,12 @@ print()
 print(f"Checked {checked} firmware files.")
 if errors:
     raise SystemExit(f"{errors} integrity problem(s) found. DO NOT FLASH.")
-print("ALL FIRMWARE FILES MATCH servicefile.xml")
+print("ALL FIRMWARE FILES MATCH flashfile.xml")
 PY
 
-banner "DESTRUCTIVE OPERATION WARNING (service/repair flash)"
+banner "DESTRUCTIVE OPERATION WARNING"
 cat <<'EOF'
-This procedure will now follow Motorola's servicefile.xml.
+This procedure will now follow Motorola's flashfile.xml.
 
 It will:
   * rewrite the GPT
@@ -343,19 +332,13 @@ It will:
   * flash boot / vendor_boot / AVB partitions
   * flash all 22 super sparse chunks
   * ERASE nvdata
+  * ERASE userdata
+  * ERASE metadata
   * ERASE debug_token
 
 It will NOT:
-  * erase userdata or metadata - this is a SERVICE/repair flash intended
-    to preserve your data, unlike the full stock flasher
-  * flash efuseBackup
   * relock the bootloader
   * reboot automatically at the end
-
-Preserving userdata/metadata is only safe when reflashing onto data that
-already matches this exact build family. If you are changing Android
-version, CID or region, use the full stock flasher instead and expect a
-factory reset.
 
 Keep the USB cable connected and do not interrupt power during flashing.
 EOF
@@ -401,6 +384,7 @@ run_fb flash dpm_a dpm.img
 run_fb flash gz_a gz.img
 run_fb flash vcp_a vcp.img
 run_fb flash gpueb_a gpueb.img
+run_fb flash efuseBackup efuse.img
 run_fb flash boot_a boot.img
 run_fb flash vendor_boot_a vendor_boot.img
 
@@ -413,11 +397,13 @@ for i in {0..21}; do
     run_fb flash super "super.img_sparsechunk.${i}"
 done
 
-checkpoint "Stage 4 completed successfully. Next: final erase (debug_token) and Motorola cleanup. userdata and metadata are NOT touched by this script."
+checkpoint "Stage 4 completed successfully. Next: final destructive erases and Motorola cleanup."
 
-CURRENT_STAGE="5: debug_token erase and Motorola cleanup"
+CURRENT_STAGE="5: userdata/metadata erase and Motorola cleanup"
 banner "$CURRENT_STAGE"
 
+run_fb erase userdata
+run_fb erase metadata
 run_fb erase debug_token
 run_fb oem fb_mode_clear
 FB_MODE_SET=0
@@ -426,10 +412,9 @@ run_fb oem config unset cmdl
 
 CURRENT_STAGE="complete"
 
-banner "SERVICEFILE.XML SEQUENCE COMPLETED SUCCESSFULLY"
+banner "FLASHFILE.XML SEQUENCE COMPLETED SUCCESSFULLY"
 cat <<'EOF'
-All operations from servicefile.xml completed without a detected command
-failure. userdata and metadata were NOT erased.
+All operations from flashfile.xml completed without a detected command failure.
 
 The script intentionally DID NOT reboot the phone and DID NOT relock the
 bootloader.
