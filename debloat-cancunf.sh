@@ -16,9 +16,14 @@ set -Eeuo pipefail
 #   reinstall dozens of your own previously-used apps; see the "Watch out
 #   for Google Play auto-restore on a fresh flash" section in
 #   docs/stock-applications.md. This script only ever touches the 26 core
-#   packages below plus the optional Stage 4 batch (docs/debloat.md,
-#   section 14), but a bloated `packages-before` snapshot is a sign you
-#   should re-check what "stock" actually means on your device first.
+#   packages, the optional Stage 4 batch, and the Stage 5 batch below
+#   (docs/debloat.md, sections 14 and 16), but a bloated `packages-before`
+#   snapshot is a sign you should re-check what "stock" actually means on
+#   your device first.
+# - Stage 5 removes some real, working features (Motorola Smart
+#   Connect/desktop mode, the screensaver, Dynamic System Updates, system
+#   tracing, Motorola Care), not just promotional bloat - read
+#   docs/debloat.md section 16 before running it.
 # - Requires exactly one authorized `adb` device reporting product cancunf.
 # - Pauses for confirmation between stages so you can test the phone in
 #   between, matching the manual procedure in docs/debloat.md.
@@ -95,6 +100,56 @@ STAGE4=(
     com.oakever.arrows
     ringtonesforandroidphonefree.ringtones.ringtonessongs.ringtonesapp
     com.motorola.lmsaappclient
+    com.google.android.apps.bard
+    com.google.android.apps.photosgo
+)
+
+# Stage 5: additional stock components identified from a community debloat
+# list, cross-checked against this project's own 403-package stock
+# baseline and existing REMOVE/KEEP decisions (see docs/debloat.md,
+# section 16). Unlike Stage 4, every package here is a confirmed part of
+# the stock ROM, so the regular remove_stage is used - a genuinely
+# missing one is handled gracefully (ALREADY REMOVED / FAILED) the same
+# way as Stages 1-3.
+#
+# NOTE: this stage includes packages that remove real, working features
+# rather than pure promotional bloat - specifically the Motorola Smart
+# Connect / desktop-mode cluster (mobiledesktop.core, motcameradesktop,
+# freeform, systemui.desk), the screensaver (dreams.basic), Dynamic
+# System Updates (dynsystem), system tracing (traceur), and Motorola
+# Care (motocare). Read docs/debloat.md section 16 before running this
+# stage on a device where you might want those.
+STAGE5_NAME="Stage 5: additional stock/diagnostic/feature components (community list)"
+STAGE5=(
+    com.android.bookmarkprovider
+    com.android.dreams.basic
+    com.android.dynsystem
+    com.android.egg
+    com.android.providers.partnerbookmarks
+    com.android.traceur
+    com.google.android.feedback
+    com.google.android.gms.supervision
+    com.google.android.printservice.recommendation
+    com.lenovo.lsf.user
+    com.motorola.android.nativedropboxagent
+    com.motorola.android.providers.chromehomepage
+    com.motorola.att.phone.extensions
+    com.motorola.attvowifi
+    com.motorola.bug2go
+    com.motorola.ccc.mainplm
+    com.motorola.contacts.preloadcontacts
+    com.motorola.dimo
+    com.motorola.enterprise.adapter.service
+    com.motorola.enterprise.service
+    com.motorola.freeform
+    com.motorola.genie
+    com.motorola.mobiledesktop.core
+    com.motorola.motcameradesktop
+    com.motorola.motocare
+    com.motorola.omadm.vzw
+    com.motorola.spectrum.setup.extensions
+    com.motorola.systemui.desk
+    com.motorola.vzw.pco.extensions.pcoreceiver
 )
 
 die() {
@@ -242,6 +297,17 @@ on your phone - see docs/debloat.md, section 14. Each is checked before
 any removal is attempted.
 EOF
 
+banner "Stage 5 packages (additional stock/diagnostic/feature components)"
+printf '%s\n' "${STAGE5[@]}"
+cat <<'EOF'
+
+This includes packages that remove real, working features, not just
+promotional bloat - the Motorola Smart Connect/desktop-mode cluster,
+the screensaver, Dynamic System Updates, system tracing, and Motorola
+Care. See docs/debloat.md, section 16, before proceeding if you might
+want any of those.
+EOF
+
 cat <<'EOF'
 
 This uses `pm uninstall --user 0`, not deletion from a signed partition.
@@ -264,6 +330,10 @@ remove_stage "$STAGE3_NAME" "${STAGE3[@]}"
 checkpoint "Stage 3 complete. Next: optional post-Google-sign-in bundled/junk apps (only removed if present)."
 
 remove_stage_if_present "$STAGE4_NAME" "${STAGE4[@]}"
+
+checkpoint "Stage 4 complete. Next: additional stock/diagnostic/feature components, including Motorola Smart Connect/desktop mode, the screensaver, Dynamic System Updates, system tracing, and Motorola Care (see docs/debloat.md, section 16)."
+
+remove_stage "$STAGE5_NAME" "${STAGE5[@]}"
 
 banner "Capturing after-state snapshot"
 snapshot "after"

@@ -360,10 +360,19 @@ com.motorola.lmsaappclient
 
 `ringtonesforandroidphonefree...` is a generic free-ringtones app matching the same spam-adjacent partner-junk pattern as `com.taboola.mip` (section 5). `com.motorola.lmsaappclient` is a Motorola-branded "Smart Assistant" client — not a game, and its exact purpose was not independently investigated, but it was absent from the stock 403-package snapshot the same way the games were.
 
+Two more were added later, for the same reason — absent from the stock baseline, so account-dependent rather than guaranteed present:
+
+```text
+com.google.android.apps.bard
+com.google.android.apps.photosgo
+```
+
+`com.google.android.apps.bard` is Google Gemini; `com.google.android.apps.photosgo` is the lightweight "Google Photos Go" variant. See [section 16](#16-additional-stockdiagnosticfeature-components-community-list) for how these were identified.
+
 **Unlike sections 5, 7 and 8, this batch is not guaranteed present on every device.** Whether these specific packages appear depends on the signed-in Google account's own app/restore history and/or Motorola's region-specific bundled-app promotions, not the firmware itself. Check what's actually present before removing anything:
 
 ```bash
-adb shell pm list packages | grep -E 'ball\.sort\.puzzle|block\.juggle|candycrushsaga|nebula\.mahjongtile|vitastudio\.mahjong|oakever\.tiletrip|oakever\.arrows|ringtonesforandroidphonefree|motorola\.lmsaappclient'
+adb shell pm list packages | grep -E 'ball\.sort\.puzzle|block\.juggle|candycrushsaga|nebula\.mahjongtile|vitastudio\.mahjong|oakever\.tiletrip|oakever\.arrows|ringtonesforandroidphonefree|motorola\.lmsaappclient|apps\.bard|apps\.photosgo'
 ```
 
 Remove only what's confirmed present:
@@ -378,13 +387,15 @@ adb shell pm uninstall --user 0 com.oakever.tiletrip
 adb shell pm uninstall --user 0 com.oakever.arrows
 adb shell pm uninstall --user 0 ringtonesforandroidphonefree.ringtones.ringtonessongs.ringtonesapp
 adb shell pm uninstall --user 0 com.motorola.lmsaappclient
+adb shell pm uninstall --user 0 com.google.android.apps.bard
+adb shell pm uninstall --user 0 com.google.android.apps.photosgo
 ```
 
 `debloat-cancunf.sh` runs this as its own separate, clearly-labeled Stage 4 (see [section 15](#15-automated-script)) — kept apart from the core 26-package removal precisely because it is account/region-specific rather than guaranteed stock, and the script checks each package's presence before attempting to remove it.
 
 ## 15. Automated script
 
-[`debloat-cancunf.sh`](../debloat-cancunf.sh) automates the three core removal batches documented above (sections 5, 7 and 8 — 26 packages in total, in the same order), the optional post-Google-sign-in batch from section 14, plus the before/after snapshotting and comparison from sections 1 and 12.
+[`debloat-cancunf.sh`](../debloat-cancunf.sh) automates the three core removal batches documented above (sections 5, 7 and 8 — 26 packages in total, in the same order), the optional post-Google-sign-in batch from section 14, the additional stock/diagnostic/feature batch from section 16, plus the before/after snapshotting and comparison from sections 1 and 12.
 
 It is guarded the same way as the firmware flashers in this repository:
 
@@ -405,6 +416,77 @@ Recommended invocation:
 chmod +x debloat-cancunf.sh
 ./debloat-cancunf.sh 2>&1 | tee debloat-run.log
 ```
+
+## 16. Additional stock/diagnostic/feature components (community list)
+
+This batch (Stage 5 in `debloat-cancunf.sh`) came from a community-shared debloat script for this exact device, not from decisions made independently on the tested device the way sections 5–9 were. Every package below was cross-checked against this project's own 403-package stock baseline (all confirmed genuine stock components, not third-party/personal apps) and against the existing REMOVE/KEEP/DISABLED decisions already on file before being added here.
+
+**Five packages from that community list were deliberately excluded** because they directly conflict with decisions already made and reasoned about on the tested device:
+
+| Package | This project's existing decision |
+|---|---|
+| `com.google.android.videos` | KEEP (Google TV) |
+| `com.motorola.help` | KEEP (see section 9 for the reasoning) |
+| `com.motorola.help.extlog` | KEEP (used by Motorola Help) |
+| `com.orange.update` | KEEP |
+| `de.telekom.tsc` | KEEP |
+
+Two more (`com.amazon.appmanager`, `com.orange.aura.oobe`) were left out because they are already handled as `DISABLED` (section 9) — a prior uninstall attempt against `com.amazon.appmanager` specifically failed on the tested device (section 4), so it was not re-attempted here.
+
+The community script's own mechanism uses `pm disable-user --user 0` rather than this project's `pm uninstall --user 0`; this project kept its existing mechanism for consistency (disabling is more instantly reversible and preserves app data, but introducing a second removal mechanism into one script was judged not worth the inconsistency).
+
+The remaining 29 packages split into three groups:
+
+**No real feature lost** — promotional/sponsor/diagnostic components with no user-facing function removed:
+
+```text
+com.android.bookmarkprovider
+com.android.providers.partnerbookmarks
+com.android.egg
+com.google.android.printservice.recommendation
+com.motorola.att.phone.extensions
+com.motorola.attvowifi
+com.motorola.omadm.vzw
+com.motorola.vzw.pco.extensions.pcoreceiver
+com.motorola.spectrum.setup.extensions
+com.motorola.enterprise.service
+com.motorola.enterprise.adapter.service
+com.motorola.bug2go
+com.google.android.feedback
+com.motorola.contacts.preloadcontacts
+com.lenovo.lsf.user
+com.motorola.dimo
+com.google.android.gms.supervision
+com.motorola.android.providers.chromehomepage
+com.motorola.android.nativedropboxagent
+```
+
+`com.motorola.att.phone.extensions` through `com.motorola.spectrum.setup.extensions` are US-carrier-specific overlays (AT&T/Verizon) that are inert on the tested device's carrier configuration (`ro.carrier: reteu`). `com.motorola.android.nativedropboxagent` is Android's system crash/ANR diagnostic log collector, not the Dropbox cloud-storage app — removing it has no user-facing effect but does reduce automatic diagnostic log collection. `com.google.android.gms.supervision` was already observed disabled by default on the tested device.
+
+**Removes a real, working feature** — a conscious trade, not pure bloat:
+
+```text
+com.motorola.mobiledesktop.core
+com.motorola.motcameradesktop
+com.motorola.freeform
+com.motorola.systemui.desk
+com.android.dreams.basic
+com.android.dynsystem
+com.android.traceur
+com.motorola.motocare
+```
+
+The first four remove Motorola's Smart Connect / desktop-mode feature (connecting the phone to a monitor for a desktop-like UI) entirely. `com.android.dreams.basic` removes the screensaver (Daydream) system. `com.android.dynsystem` removes Dynamic System Updates (the ability to boot a temporary/dynamic system image for testing). `com.android.traceur` removes the system tracing tool used for performance debugging. `com.motorola.motocare` removes Motorola's own support/care app.
+
+**Purpose not independently confirmed** — included on the device owner's decision despite the package's exact function not being verified on the tested device:
+
+```text
+com.motorola.genie
+com.motorola.ccc.mainplm
+com.google.android.apps.bard
+```
+
+`com.google.android.apps.bard` (Google Gemini) is not part of the stock 403-package baseline — like the games in section 14, it depends on the signed-in Google account, so `debloat-cancunf.sh` groups it with `com.google.android.apps.photosgo` into the presence-checked Stage 4 batch rather than the guaranteed-present Stage 5. `com.motorola.genie` and `com.motorola.ccc.mainplm` are confirmed stock components but their exact purpose wasn't independently investigated before removal.
 
 ## General rule
 
