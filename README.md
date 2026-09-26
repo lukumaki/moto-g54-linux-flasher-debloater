@@ -35,6 +35,7 @@ A Linux-focused, carefully validated workflow for restoring Motorola stock firmw
 - Running the removal batches through a guarded script with its own before/after logging
 - Keeping the screen awake during long ADB/app-install sessions
 - Reinstalling large application lists through Google Play using package names
+- Optionally, unlocking the bootloader and installing a custom ROM instead of restoring stock (see [Part IV](#part-iv---custom-rom-installation-optional))
 
 ## Before you start: Developer options, unlocking, and relocking
 
@@ -569,6 +570,14 @@ A separate note on Seedvault/Seednaut-assisted recovery is available in [`docs/a
 
 ---
 
+# Part IV - Custom ROM installation (optional)
+
+Everything above restores and cleans up Motorola's own stock firmware, which is why none of it needs an unlocked bootloader. Installing a custom ROM instead is a separate, optional path with different requirements — a genuine bootloader unlock, a full data wipe, and trusting a third-party ROM build rather than Motorola's own signed firmware.
+
+See [`docs/custom-rom-guide.md`](docs/custom-rom-guide.md) for the full unlock-and-flash walkthrough (codename `cancunf`, covering both the Moto G54 5G and Moto G64 5G).
+
+---
+
 # Useful ADB convenience: keep the screen awake
 
 During long debloat or application-reinstall sessions, the phone can be kept awake while connected through USB:
@@ -664,3 +673,9 @@ This project was developed with practical information and community knowledge sh
 - [cancunf Backup](https://t.me/cancunfbackup)
 
 These communities are acknowledged as sources of device-specific help and shared experience. They are not responsible for this repository's scripts or documentation.
+
+**[`docs/custom-rom-guide.md`](docs/custom-rom-guide.md)** is a rewrite, adapted for this repository, of **[Cyber Knight's Motorola G54/G64 5G Custom ROM Guide](https://cyberknight777.dev/instructions/cancunf/)**. All credit for the original unlock/flash process goes to Cyber Knight; any error introduced in the rewritten version here is this repository's own.
+
+# License
+
+MIT License — see [`LICENSE`](LICENSE).
