@@ -1,4 +1,6 @@
 # Moto G54 5G (cancunf) Linux Stock Firmware Flasher and Debloater
+A Linux-focused, carefully validated workflow for restoring Motorola stock firmware on the **Moto G54 5G (`cancunf`)**, relocking the bootloader, conservatively debloating the restored stock ROM, and reinstalling applications from a package-name list. This is not a theoretical collection of commands. It documents the actual procedure followed on a real Moto G54 5G from **Debian 13 (Trixie)** and the observations made during that restore.
+
 
 ![Device](https://img.shields.io/badge/device-Moto%20G54%205G%20(cancunf)-blue)
 ![Android](https://img.shields.io/badge/tested%20Android-15-green)
@@ -7,14 +9,13 @@
 ![ADB](https://img.shields.io/badge/tools-ADB%20%2B%20Fastboot-orange)
 ![Status](https://img.shields.io/badge/status-tested%20on%20real%20device-brightgreen)
 
-A Linux-focused, carefully validated workflow for restoring Motorola stock firmware on the **Moto G54 5G (`cancunf`)**, relocking the bootloader, conservatively debloating the restored stock ROM, and reinstalling applications from a package-name list.
+
 > ## 📢 Keep Android Open
 >
 > If you care about the freedom to unlock, modify, repair, flash custom ROMs, and continue developing for Android devices, please take a moment to visit **[Keep Android Open](https://keepandroidopen.org/en/)** and support the campaign.
 >
 > **The ability to unlock and modify our own devices is directly relevant to projects like this one. Please read, share, and act.**
->
-This is not a theoretical collection of commands. It documents the actual procedure followed on a real Moto G54 5G from **Debian 13 (Trixie)** and the observations made during that restore.
+
 
 ## What this project covers
 
@@ -37,24 +38,30 @@ This is not a theoretical collection of commands. It documents the actual proced
 
 ## Before you start: Developer options, unlocking, and relocking
 
-**If you're recovering a phone that won't boot at all (bricked), read this first:** flashing the ROM with this repository's scripts needs none of Developer options, OEM unlocking, USB debugging, or an unlocked bootloader. Fastboot/bootloader mode is reachable with the phone powered off via **Volume Down + Power**, entirely independent of whether Android boots or whether any of those settings were ever turned on. This was field-confirmed on the tested device: `flash-service-cancunf.sh` completed a full flash and successful reboot with the bootloader still *locked* (`securestate: flashing_locked`, no Developer options or USB debugging enabled at all), confirmed afterward by `ro.boot.verifiedbootstate: green` — not just fastboot returning `OKAY`. See the explanation after step 4 below for why, and its limits.
+**If you're recovering a phone that won't boot at all (bricked), read this first:** flashing the ROM with this repository's scripts needs none of Developer options, OEM unlocking, USB debugging, or an unlocked bootloader. Fastboot/bootloader mode is reachable with the phone powered off via **Volume Down + Power**, entirely independent of whether Android boots or whether any of those settings were ever turned on. This was field-confirmed on the tested device: `flash-service-cancunf.sh` completed a full flash and successful reboot with the bootloader still *locked* (`securestate: flashing_locked`, no Developer options or USB debugging enabled at all), confirmed afterward by `ro.boot.verifiedbootstate: green` — not just fastboot returning `OKAY`. See step 1 below for why, and its limits.
 
 Developer options, OEM unlocking, and USB debugging only matter for what comes **after** a successful flash and reboot: verifying the restored system, debloating (Part II), and reinstalling apps (Part III) are all `adb`-based and need a booted phone with USB debugging enabled. The steps below cover getting there, plus how to unlock the bootloader if you separately want or need to (for custom-ROM work, for instance), and how to relock afterward.
 
-### 1. Enable Developer options
+### 1. Do you actually need to unlock the bootloader?
 
-On the phone: **Settings → About phone → tap "Build number" 7 times.** "Developer options" then appears under **Settings → System**. Not needed for flashing itself — see above.
+Not necessarily, on this hardware. `flashfile.xml`/`servicefile.xml` are Motorola's own officially signed images for this exact model and CID, and this device's MediaTek bootloader validates that signature independently of the lock state — flashing one of those packages via plain `fastboot flash` was confirmed to complete successfully with `securestate: flashing_locked` (the same mechanism that lets Motorola's own Rescue and Smart Assistant repair a phone without unlocking it). The flasher scripts detect a locked bootloader and print an informational note rather than refusing to run.
 
-### 2. Enable OEM unlocking and USB debugging
+This is **not** a general "locked accepts anything" rule — it applies specifically to Motorola's own signed firmware matching your model/CID, not to unsigned or custom images (custom recovery, patched boot images, custom ROMs), which still require a genuine unlock. If a flash command fails with something like `not allowed in locked state`, or you want the bootloader unlocked anyway (for future custom-ROM work, for instance), continue to step 6.
+
+### 2. Enable Developer options
+
+On the phone: **Settings → About phone → tap "Build number" 7 times.** "Developer options" then appears under **Settings → System**. Not needed for flashing itself — see step 1 above.
+
+### 3. Enable OEM unlocking and USB debugging
 
 Inside Developer options, enable both:
 
-- **OEM unlocking** — required before `fastboot` will accept an unlock *command*, if you choose to unlock (step 5). On Motorola devices this can require an active SIM/internet connection and a signed-in Google account the first time, since the toggle itself may need to phone home to confirm the device is eligible. Not required to flash `flashfile.xml`/`servicefile.xml` with this repository's scripts.
+- **OEM unlocking** — required before `fastboot` will accept an unlock *command*, if you choose to unlock (step 6). On Motorola devices this can require an active SIM/internet connection and a signed-in Google account the first time, since the toggle itself may need to phone home to confirm the device is eligible. Not required to flash `flashfile.xml`/`servicefile.xml` with this repository's scripts.
 - **USB debugging** — required for every `adb`-based step in this repository (all of Part II/III, the verification commands in Part I, and `debloat-cancunf.sh`). It is **not** required for `fastboot`/flashing itself, since fastboot talks to the bootloader directly, before Android boots.
 
 When you plug in and run `adb devices` for the first time, accept the "Allow USB debugging?" prompt on the phone screen; otherwise the host is not authorized and every `adb` command in this repository will fail.
 
-### 3. Get into fastboot/bootloader mode
+### 4. Get into fastboot/bootloader mode
 
 Either:
 
@@ -64,7 +71,7 @@ adb reboot bootloader
 
 (requires USB debugging and an already-authorized host, so only works on a phone that already boots), or hold **Volume Down + Power** while the phone is off — no ADB, no Developer options, no working Android required. This is the way in for a phone that won't boot.
 
-### 4. Check whether the bootloader is locked
+### 5. Check whether the bootloader is locked
 
 ```bash
 fastboot devices
@@ -79,13 +86,9 @@ fastboot getvar securestate
 - `fastboot getvar unlocked` is the generic AOSP equivalent; many Motorola bootloader versions don't implement it and print `unlocked: not supported` or fail outright, which is expected and not an error.
 - `fastboot getvar securestate` is the value confirmed present on the tested device's MediaTek bootloader (and shown directly on the fastboot-mode screen): `flashing_locked` or `flashing_unlocked`.
 
-Not every device exposes all four; the flasher scripts here already try them in this order and fall back gracefully.
+Not every device exposes all four; the flasher scripts here already try them in this order and fall back gracefully. See step 1 above if you're still deciding whether you actually need to unlock before going further.
 
-**Do you actually need to unlock for this repository's scripts?** Not necessarily, on this hardware. `flashfile.xml`/`servicefile.xml` are Motorola's own officially signed images for this exact model and CID, and this device's MediaTek bootloader validates that signature independently of the lock state — flashing one of those packages via plain `fastboot flash` was confirmed to complete successfully with `securestate: flashing_locked` (the same mechanism that lets Motorola's own Rescue and Smart Assistant repair a phone without unlocking it). The flasher scripts detect a locked bootloader and print an informational note rather than refusing to run.
-
-This is **not** a general "locked accepts anything" rule — it applies specifically to Motorola's own signed firmware matching your model/CID, not to unsigned or custom images (custom recovery, patched boot images, custom ROMs), which still require a genuine unlock. If a flash command fails with something like `not allowed in locked state`, or you want the bootloader unlocked anyway (for future custom-ROM work, for instance), continue to step 5.
-
-### 5. Unlock the bootloader (if you need or want to)
+### 6. Unlock the bootloader (if you need or want to)
 
 **This factory-resets the phone.** Unlocking the bootloader is a security measure that wipes `userdata` by design, on every Android device, not something specific to this repository's scripts. Back up anything you need first.
 
@@ -93,9 +96,9 @@ This is **not** a general "locked accepts anything" rule — it applies specific
 fastboot flashing unlock
 ```
 
-(older Motorola bootloaders instead use `fastboot oem unlock`). Confirm on the phone's screen using the volume/power keys as prompted. Re-run step 4's checks afterward to confirm.
+(older Motorola bootloaders instead use `fastboot oem unlock`). Confirm on the phone's screen using the volume/power keys as prompted. Re-run step 5's checks afterward to confirm.
 
-### 6. Relocking, once you're done
+### 7. Relocking, once you're done
 
 Relocking is covered in full, with the tested device's actual output, in [Part I, step 11](#11-relock-the-bootloader) and [`docs/relock-bootloader.md`](docs/relock-bootloader.md). In short, after stock Android has booted successfully and been verified:
 
@@ -523,7 +526,7 @@ See [`docs/relock-bootloader.md`](docs/relock-bootloader.md) for the dedicated n
 
 # Part II - Conservative debloating
 
-**Reminder:** this entire section is `adb`-based, so USB debugging must be enabled in Developer options (see [Before you start, step 2](#2-enable-oem-unlocking-and-usb-debugging)) before any of it will work — unlike Part I's flashing, which needs none of that.
+**Reminder:** this entire section is `adb`-based, so USB debugging must be enabled in Developer options (see [Before you start, step 3](#3-enable-oem-unlocking-and-usb-debugging)) before any of it will work — unlike Part I's flashing, which needs none of that.
 
 The debloat was deliberately performed **after** restoring and validating stock Android.
 
