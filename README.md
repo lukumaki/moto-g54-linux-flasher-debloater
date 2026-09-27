@@ -110,6 +110,8 @@ fastboot oem lock
 
 Do this only after the restored stock system has booted and been checked — not immediately after flashing.
 
+**Relock on the newest firmware you have, not an older one.** A locked bootloader enforces Android's AVB rollback index strictly; an unlocked one doesn't. Firmware that boots fine unlocked can fail to boot (`No valid operating system could be found`) the moment you lock it, if a newer build was ever run on the device in between — this is recoverable, not a brick, but read [`docs/relock-bootloader.md`](docs/relock-bootloader.md#a-second-separate-risk-the-avb-rollback-index-not-just-the-per-component-anti-rollback-table) before you relock on anything other than the newest build.
+
 ## Important warning
 
 **Flashing firmware can permanently brick a device if the firmware, model, CID or partition sequence is wrong.**
@@ -253,6 +255,14 @@ A separate note on Seedvault/Seednaut-assisted recovery is available in [`docs/a
 Everything above restores and cleans up Motorola's own stock firmware, which is why none of it needs an unlocked bootloader. Installing a custom ROM instead is a separate, optional path with different requirements — a genuine bootloader unlock, a full data wipe, and trusting a third-party ROM build rather than Motorola's own signed firmware.
 
 See [`docs/custom-rom-guide.md`](docs/custom-rom-guide.md) for the full unlock-and-flash walkthrough (codename `cancunf`, covering both the Moto G54 5G and Moto G64 5G).
+
+---
+
+# Bonus: diagnosing calls, VoLTE and IMS
+
+Not part of the core restore/debloat/reinstall workflow above, but the actual reason this project exists: a real investigation into calls not registering over VoLTE/IMS, carried out across both a custom ROM and multiple stock builds on the tested device.
+
+See [`docs/calling-ims-troubleshooting.md`](docs/calling-ims-troubleshooting.md) for the diagnostic method — reading `carrier_config` to check whether IMS-over-roaming is even supposed to work, capturing and reading the radio log during a real call, and telling a genuinely answered call apart from one that only rang. It's also confirmed there that a full conservative debloat (Part II, including Stage 5) doesn't break calling.
 
 ---
 
