@@ -135,6 +135,16 @@ fastboot --skip-reboot update yaap_banshee_cancunf_initial_install.zip
 
 (swap in your own initial install zip's filename.)
 
+#### Why not just `fastboot flash` the ROM's own partitions directly, the way Part I's stock flasher does?
+
+This was tried and does not work — worth documenting so nobody else spends time on the same dead end. A stock `flashfile.xml`-style flash writes `preloader`, `lk`, `tee`, `dtbo`, `vbmeta`, and the rest of the firmware/AVB set directly over fastboot in **bootloader** mode. The custom-ROM equivalent doesn't have that option:
+
+- **fastbootd exposes a much smaller partition set than the bootloader does.** `fastboot getvar all` from fastbootd lists `boot`, `vendor_boot`, the logical (`super`) partitions, `metadata`, `userdata` and `super` itself — but no `dtbo`, `vbmeta`, `vbmeta_system`, `lk`, `tee`, or the rest of the firmware set the stock flasher writes. There is nothing to `fastboot flash` those images *onto* from fastbootd.
+- **The preloader partition name differs.** It's `preloader_raw_a`/`preloader_raw_b` in fastbootd, not the bare `preloader` name the stock bootloader-mode flasher uses.
+- **`super` has no spare room for a second ROM.** On the tested device, `super` is sized for one slot's worth of `system`/`vendor`/`product`/etc. (about 6.2 GB), already close to full with the active slot's stock images; a custom ROM's five logical images (roughly 3.2 GB) don't fit alongside a second copy without shrinking or wiping the existing slot.
+
+A stock reflash and a custom ROM install are not the same kind of operation just because both eventually touch `boot`/`vendor_boot`/`super`: the stock flasher works because it runs in bootloader mode against a `flashfile.xml` written for that exact purpose, with `super` sized to hold only one slot. The ROM's own initial-install-zip + `adb sideload` path (steps 2–4 here) is the one Google's own update_engine-based OTA mechanism actually drives the firmware/AVB/logical-partition writes through — that mechanism exists precisely because a plain `fastboot flash` loop can't do it on this device's partition layout.
+
 ### 3. Wipe data
 
 ```bash
