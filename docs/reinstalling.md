@@ -289,6 +289,20 @@ What should remain separate is **data restoration**. For banking, payment, gover
 
 This is especially relevant after returning from a custom ROM to locked stock firmware, where the goal is to let security-sensitive apps establish their state cleanly on the restored device.
 
+### If the bootloader was ever unlocked, expect a permanently reduced integrity verdict
+
+Relocking the bootloader and reflashing signed stock firmware restores `ro.boot.flash.locked=1`, `ro.boot.verifiedbootstate=green` and `ro.build.tags=release-keys` — every *software*-visible signal looks clean. It does **not** clear the hardware attestation record that the device's bootloader was unlocked at some point; that appears to be burned in permanently (`ro.boot.warranty_bit`/`iswarrantyvoid` stayed `yes` on the tested device from the very first `fastboot getvar` capture, through every subsequent relock and reflash).
+
+Practically, this was confirmed on the tested device using the [Play Integrity API Checker](https://play.google.com/store/apps/details?id=gr.nikolasspyr.integritycheck) app (the current replacement for the deprecated SafetyNet checkers like YASNAC — SafetyNet's backend no longer exists):
+
+- `MEETS_BASIC_INTEGRITY`: **passed**
+- `MEETS_DEVICE_INTEGRITY`: **failed**
+- `MEETS_STRONG_INTEGRITY`: **failed**
+
+The Play Store's own "Play Protect certification" status showed "Device is not certified" for the same reason. Neither a factory reset nor a full stock reflash while locked changed this.
+
+**This did not stop Revolut from installing and running** on the tested device — many banking/fintech apps only require `MEETS_BASIC_INTEGRITY`, not the device/strong tiers. But this is app-specific and not guaranteed: some banking, payment or government-ID apps do check for `MEETS_DEVICE_INTEGRITY` and will refuse to run, or run in a restricted mode, on a device that fails it — permanently, in this project's case, regardless of anything documented in Part I or Part II. If you've ever unlocked this device's bootloader (including just to test Part IV's custom ROM path), install the integrity checker app first and know your actual verdict before relying on a banking app's full functionality, rather than assuming stock-and-locked is equivalent to never-unlocked.
+
 ## 11. Package names that no longer exist
 
 A historical package list may contain applications that:
