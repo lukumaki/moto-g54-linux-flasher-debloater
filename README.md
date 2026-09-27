@@ -352,7 +352,7 @@ This project was developed with practical information and community knowledge sh
 
 These communities are acknowledged as sources of device-specific help and shared experience. They are not responsible for this repository's scripts or documentation.
 
-**[`docs/custom-rom-guide.md`](docs/custom-rom-guide.md)** is a rewrite, adapted for this repository, of **[cyberknight777's Motorola G54/G64 5G Custom ROM Guide](https://cyberknight777.dev/instructions/cancunf/)**. All credit for the original unlock/flash process goes to Cyber Knight; any error introduced in the rewritten version here is this repository's own.
+**[`docs/custom-rom-guide.md`](docs/custom-rom-guide.md)** is a rewrite, adapted for this repository, of **[cyberknight777's Motorola G54/G64 5G Custom ROM Guide](https://cyberknight777.dev/instructions/cancunf/)**. All credit for the original unlock/flash process goes to cyberknight777; any error introduced in the rewritten version here is this repository's own.
 
 # License
 
