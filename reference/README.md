@@ -92,6 +92,21 @@ Read together, this suggests two separate effects rather than one:
 
 `com.google.android.signature` and `com.google.android.server.deviceconfig.resources` are minor GMS/module churn between the two captures and weren't investigated further.
 
+## Play Store display names vs. package names
+
+The Play Store's "Manage apps & device > Updates available" screen lists apps by their display name, not their package name, which can make it hard to tell whether a listed app is one this project has already made a KEEP/REMOVE decision about. Confirmed on the tested device (via `pm path`/`pm list packages -f`, and for the ambiguous one below, by pulling the APK and checking its actual `application-label` with `aapt dump badging`):
+
+| Play Store display name | Package | Existing decision |
+|---|---|---|
+| Moto | `com.motorola.moto` | KEEP — see [`docs/stock-applications.md`](../docs/stock-applications.md); confirmed still actively maintained (received a 102 MB update) |
+| Moto Secure | `com.motorola.securityhub` | KEEP |
+| Secure folder | `com.motorola.securevault` | KEEP — Motorola's equivalent of Samsung's Secure Folder (an encrypted vault for private photos/files/apps), not something to remove |
+| Σχόλια Moto / Moto Feedback | `com.motorola.help` | KEEP — this is `MotoHelp.apk` itself (labeled "Motorola Help" in this project's docs); its Greek `application-label-el` string is a literal, exact match for "Σχόλια Moto". Not to be confused with `com.motorola.help.extlog`, a separate package (`MotoFeedbackAssistant.apk`) also KEEP — see the section 9 reasoning in [`docs/debloat.md`](../docs/debloat.md) |
+| Ενέργειες Moto / Moto Actions | `com.motorola.actions` | KEEP |
+| Τηλ. Google / Google Phone | `com.google.android.dialer` | KEEP |
+
+None of the packages listed as pending updates on the tested device were anything this project had removed reappearing — all of them are either `KEEP` decisions or packages never touched by the debloat (Calculator, Clock, Contacts, Accessibility Suite, Switch Access, Personal Safety, Google's own core apps). That's the expected result: a package removed only for user 0 doesn't reappear in Play Store's own update list unless it's reinstalled first.
+
 ## Important
 
 These files are a **reference snapshot, not a universal debloat list**. Different regions, carrier configurations, OTA revisions, and Motorola firmware builds can contain different packages or paths.
