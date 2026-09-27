@@ -144,5 +144,3 @@ ru.andr7e.sensortest
 taxi.android.client
 
 # banking and sensitive apps are excluded - DON'T forget to add them manually
-# excluded: com.EurobankEFG (Eurobank), com.ioniangroup (unclear), com.myklarnamobile (Klarna),
-# gr.gov.myhealth, gr.gov.wallet, gr.payzy (Payzy), gr.winbank.mobile.redesign (Winbank), mbanking.NBG (NBG)
