@@ -1,10 +1,8 @@
 app.lawnchair.play
-com.EurobankEFG
 com.airbnb.android
 com.alibaba.aliexpresshd
 com.anthropic.claude
 com.banggood.client
-com.bitwarden.authenticator
 com.booking
 com.brave.browser
 com.chartcross.gpstest
@@ -16,10 +14,8 @@ com.hypermorph.healthydermaclinics
 com.ilv.vradio
 com.imaginecurve.curve.prd
 com.instagram.android
-com.ioniangroup
 com.jancsinn.label
 com.jimdem.fuelgr
-com.kraken.invest.app
 com.lidl.eci.lidlplus
 com.linkedin.android
 com.marinetraffic.android
@@ -27,17 +23,13 @@ com.microsoft.office.officehubrow
 com.microsoft.office.outlook
 com.microsoft.skydrive
 com.more.morecom
-com.myklarnamobile
 com.niobiumlabs.android.apps.skroutz
 com.nordvpn.android
 com.oanda.currencyconverter
 com.openai.chatgpt
-com.paypal.android.p2pmobile
-com.revolut.revolut
 com.ryanair.cheapflights
 com.shazam.android
 com.simplemobiletools.gallery.pro
-com.snappibank.snappiapp
 com.sonos.acr2
 com.soundcloud.android
 com.spotify.music
@@ -47,11 +39,9 @@ com.ubercab
 com.ug.eon.android
 com.venturegeeks.efood
 com.viber.voip
-com.vivawallet.business
 com.whatsapp
 com.wizzair.WizzAirApp
 com.wolt.android
-com.x8bit.bitwarden
 com.xiaomi.smarthome
 de.autodoc.gmbh
 fr.vinted
@@ -59,16 +49,11 @@ gr.acscourier.app
 gr.boxnow.customer
 gr.cosmote.box
 gr.dei.deimobile
-gr.gov.myhealth
-gr.gov.wallet
 gr.invoke.eshop.gr
-gr.payzy
 gr.vendora.app
-gr.winbank.mobile.redesign
 gr.wind.mywind
 hu.bkk.bubi
 hu.webvalto.bkkfutar
-mbanking.NBG
 net.residentadvisor.raguide
 net.skyscanner.android.main
 net.techet.netanalyzerlite.an
@@ -79,3 +64,5 @@ org.zwanoo.android.speedtest
 radio.greece.free.fm
 ru.andr7e.sensortest
 taxi.android.client
+
+# banking and sensitive apps are excluded - DON'T forget to add them manually
