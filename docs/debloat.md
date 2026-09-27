@@ -369,10 +369,19 @@ com.google.android.apps.photosgo
 
 `com.google.android.apps.bard` is Google Gemini; `com.google.android.apps.photosgo` is the lightweight "Google Photos Go" variant. See [section 16](#16-additional-stockdiagnosticfeature-components-community-list) for how these were identified.
 
+Two more turned up on a later relock/reflash cycle, signing into the same account from Settings rather than the setup wizard (see [`reference/README.md`](../reference/README.md#signing-into-google-via-settings-instead-of-the-setup-wizard-fewer-auto-installed-apps)) — a different pair of generic document-reader apps than anything seen before, confirming this whole batch rotates rather than being a fixed set:
+
+```text
+all.documentreader.filereader.office.viewer
+com.documentreader.free.viewer.all
+```
+
+Both match the same generic, spam-adjacent naming pattern as `ringtonesforandroidphonefree...` above and `com.taboola.mip` (section 5) — silently installed, not part of the firmware, not something the device owner asked for.
+
 **Unlike sections 5, 7 and 8, this batch is not guaranteed present on every device.** Whether these specific packages appear depends on the signed-in Google account's own app/restore history and/or Motorola's region-specific bundled-app promotions, not the firmware itself. Check what's actually present before removing anything:
 
 ```bash
-adb shell pm list packages | grep -E 'ball\.sort\.puzzle|block\.juggle|candycrushsaga|nebula\.mahjongtile|vitastudio\.mahjong|oakever\.tiletrip|oakever\.arrows|ringtonesforandroidphonefree|motorola\.lmsaappclient|apps\.bard|apps\.photosgo'
+adb shell pm list packages | grep -E 'ball\.sort\.puzzle|block\.juggle|candycrushsaga|nebula\.mahjongtile|vitastudio\.mahjong|oakever\.tiletrip|oakever\.arrows|ringtonesforandroidphonefree|motorola\.lmsaappclient|apps\.bard|apps\.photosgo|documentreader'
 ```
 
 Remove only what's confirmed present:
@@ -389,6 +398,8 @@ adb shell pm uninstall --user 0 ringtonesforandroidphonefree.ringtones.ringtones
 adb shell pm uninstall --user 0 com.motorola.lmsaappclient
 adb shell pm uninstall --user 0 com.google.android.apps.bard
 adb shell pm uninstall --user 0 com.google.android.apps.photosgo
+adb shell pm uninstall --user 0 all.documentreader.filereader.office.viewer
+adb shell pm uninstall --user 0 com.documentreader.free.viewer.all
 ```
 
 `debloat-cancunf.sh` runs this as its own separate, clearly-labeled Stage 4 (see [section 15](#15-automated-script)) — kept apart from the core 26-package removal precisely because it is account/region-specific rather than guaranteed stock, and the script checks each package's presence before attempting to remove it.

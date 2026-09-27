@@ -75,6 +75,8 @@ The complete package-manager snapshot contained 403 package entries. That raw se
 | `com.google.android.apps.subscriptions.red` | Google One | **REMOVE** |
 | `com.google.android.apps.googleassistant` | Google Assistant application | **REMOVE** |
 | `com.google.android.apps.photos` | Google Photos | **REMOVE** |
+| `com.google.android.apps.adm` | Find My Device | KEEP |
+| `com.google.android.apps.walletnfcrel` | Google Wallet | KEEP |
 | `com.google.android.apps.docs` | Google Drive | KEEP |
 | `com.google.android.videos` | Google TV | KEEP |
 | `com.google.android.apps.wallpaper` | Google Wallpapers | KEEP |
@@ -115,6 +117,14 @@ The extra packages were not part of the firmware. Cross-checking the third-party
 Removing exactly those 86 packages from the 489-package snapshot reproduced the original 403-package list **exactly**, name for name. This confirms two things: `V1TDS35H.83-20-5-8-4` ships the identical stock application set as `V1TDS35H.83-20-5-12`, and the 86 extra packages came entirely from Google Play's "restore apps" feature reinstalling the signed-in account's previously-used apps — not from the firmware.
 
 **Practical guidance:** if you sign into Google before capturing a `packages-before` snapshot on a fresh flash, expect it to be polluted with your own previously-installed apps. Either capture the snapshot before adding a Google account, or diff the third-party subset (`pm list packages -3`) against [`reference/all-packages.txt`](../reference/all-packages.txt) to separate genuine stock/carrier bundles from auto-restored personal apps before making any debloat decisions from it.
+
+## The setup wizard's Google sign-in step installs more than signing in later does
+
+A separate relock/reflash cycle on the same `V1TDS35H.83-20-5-12` build, this time skipping the setup wizard's own account step and signing into Google afterward from Settings > Accounts instead, came up **397** packages rather than 403 — six fewer, not more. The Google apps in this file's table that are marked **REMOVE** (Sheets, Docs, Slides, News, Fit, Podcasts) plus `com.google.android.apps.adm` and `com.google.android.apps.walletnfcrel` above were simply never installed in the first place on that run.
+
+In other words, at least some of what this document treats as "stock apps to remove" only exist because of *how* the account was signed in, not because the firmware ships them unconditionally. A rotating pair of generic promotional apps (see [section 14](debloat.md#14-optional-post-google-sign-in-bundledjunk-apps-verify-before-running)) showed up either way, so that part isn't avoidable by choice of sign-in path.
+
+See [`reference/README.md`](../reference/README.md#signing-into-google-via-settings-instead-of-the-setup-wizard-fewer-auto-installed-apps) for the full package-level diff.
 
 ## Capture your own before-state
 

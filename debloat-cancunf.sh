@@ -102,6 +102,8 @@ STAGE4=(
     com.motorola.lmsaappclient
     com.google.android.apps.bard
     com.google.android.apps.photosgo
+    all.documentreader.filereader.office.viewer
+    com.documentreader.free.viewer.all
 )
 
 # Stage 5: additional stock components identified from a community debloat
