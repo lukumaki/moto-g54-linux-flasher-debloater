@@ -88,6 +88,8 @@ A failure should be inspected rather than worked around blindly. For example, du
 
 One specific non-`Success` result is benign and worth calling out on its own: `Failure [not installed for 0]` means the package was already removed for user 0 before this command ran — typically because a previous debloat pass (or a previous run of `debloat-cancunf.sh`) already removed it. There is nothing left to do; the end state is identical to a fresh successful removal. `debloat-cancunf.sh` recognizes this exact message and reports it as `ALREADY REMOVED` rather than `FAILED`, so re-running the script on an already-debloated phone doesn't produce a wall of misleading failures.
 
+`Failure [not installed for 0]` has a second, distinct cause that reads identically: the package was never installed at all, not previously removed. On a Settings-sign-in flash (see [`reference/README.md`](../reference/README.md#signing-into-google-via-settings-instead-of-the-setup-wizard-fewer-auto-installed-apps)), a live run of `debloat-cancunf.sh`'s core Stage 1 reported `com.google.android.apps.docs.editors.{sheets,docs,slides}`, `com.google.android.apps.magazines`, `com.google.android.apps.fitness` and `com.google.android.apps.podcasts` as `ALREADY REMOVED`, when in fact none of them had ever been installed on that device in the first place. Android's package manager does not distinguish the two cases in its response, so the script can't either — but the practical result is identical either way: there is nothing to remove, and nothing to inspect.
+
 ## 5. First removal batch
 
 The first conservative batch removed unwanted Google applications and obvious partner/recommendation components:
@@ -427,6 +429,12 @@ Recommended invocation:
 chmod +x debloat-cancunf.sh
 ./debloat-cancunf.sh 2>&1 | tee debloat-run.log
 ```
+
+### Confirmed: a full run, including Stage 5, does not break calls
+
+A live end-to-end run of `debloat-cancunf.sh` — all five stages, nothing skipped or declined at any checkpoint — was tested on the device this project's calling/IMS troubleshooting was done on (see the main [README](../README.md)). Result: **52 removed, 6 already-removed (the never-installed Google apps noted in section 4), 0 failed, 10 Stage 4 packages skipped as not present.** After rebooting, outgoing and incoming calls were confirmed still working normally.
+
+This specifically included `com.motorola.attvowifi` (Stage 5) — its name suggests Wi-Fi calling/VoWiFi involvement, but removing it had no observed effect on calling. It's called out here rather than silently trusted, since anyone debloating a phone they actually rely on for calls will want the same reassurance rather than having to test it blind.
 
 ## 16. Additional stock/diagnostic/feature components (community list)
 
