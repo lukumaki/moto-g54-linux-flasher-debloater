@@ -55,6 +55,43 @@ package:/path/to/base.apk=com.example.package
 
 A later snapshot taken on the Motorola Software Fix build `V1TDS35H.83-20-5-8-4`, after signing into a Google account, initially showed 489 packages instead of 403. After excluding 86 packages identified as Google Play "restore apps" reinstalling the account's own previously-used apps, the remaining set matched this file's 403 packages exactly. See [`../docs/stock-applications.md`](../docs/stock-applications.md#watch-out-for-google-play-auto-restore-on-a-fresh-flash) for the full comparison and methodology — useful if you need to tell a genuine firmware package apart from a personal app restored after sign-in.
 
+## Signing into Google via Settings instead of the setup wizard: fewer auto-installed apps
+
+A second snapshot, `all-packages-settings-signin.txt` / `packages-with-paths-settings-signin.txt`, was captured on the same firmware build (`V1TDS35H.83-20-5-12`) right after a bootloader relock and a full data wipe, but with a deliberately different setup path: the account/restore step in the setup wizard was skipped entirely, and the Google account was instead added afterward from **Settings → Accounts**.
+
+This snapshot has **397 packages** (393 system, 4 third-party) instead of the 403 in `all-packages.txt`/`packages-with-paths.txt` (which were captured after going through the setup wizard's own Google sign-in step). Diffing the two:
+
+Present in the setup-wizard capture but **not** in the Settings-sign-in capture:
+
+```text
+com.brave.browser
+com.google.android.apps.adm
+com.google.android.apps.docs.editors.docs
+com.google.android.apps.docs.editors.sheets
+com.google.android.apps.docs.editors.slides
+com.google.android.apps.fitness
+com.google.android.apps.magazines
+com.google.android.apps.podcasts
+com.google.android.apps.walletnfcrel
+com.google.android.server.deviceconfig.resources
+```
+
+Present in the Settings-sign-in capture but **not** in the setup-wizard capture:
+
+```text
+all.documentreader.filereader.office.viewer
+com.documentreader.free.viewer.all
+com.google.android.signature
+ringtonesforandroidphonefree.ringtones.ringtonessongs.ringtonesapp
+```
+
+Read together, this suggests two separate effects rather than one:
+
+- Signing in through the **setup wizard's own account step** appears to trigger a bundled auto-install of core Google productivity/lifestyle apps (Docs, Sheets, Slides, Fit, Magazines, Podcasts, Wallet, Find My Device/`adm`) that does **not** happen when the same account is instead added later from Settings. If you want the leanest possible starting point, skipping the wizard's account step and signing in afterward avoids this whole bundle.
+- A small set of promotional third-party apps (a document reader, a ringtones app, or `com.brave.browser` in the other capture) still gets silently installed by Play Store independent of the sign-in path. This set looks like it rotates/varies per install rather than being a fixed list, so expect *some* small sponsor app(s) either way — `com.facebook.katana` is the one constant between both captures, so it's likely a genuine bundled partner app rather than part of this rotation.
+
+`com.google.android.signature` and `com.google.android.server.deviceconfig.resources` are minor GMS/module churn between the two captures and weren't investigated further.
+
 ## Important
 
 These files are a **reference snapshot, not a universal debloat list**. Different regions, carrier configurations, OTA revisions, and Motorola firmware builds can contain different packages or paths.
