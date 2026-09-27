@@ -1,0 +1,148 @@
+# Lawnchair
+app.lawnchair.play
+# Airbnb
+com.airbnb.android
+# AliExpress
+com.alibaba.aliexpresshd
+# Claude
+com.anthropic.claude
+# Banggood
+com.banggood.client
+# Bitwarden Authenticator (2FA)
+com.bitwarden.authenticator
+# Booking.com
+com.booking
+# Brave
+com.brave.browser
+# GPS Test
+com.chartcross.gpstest
+# Temu
+com.einnovation.temu
+# ERTFLIX
+com.ertflix.app
+# Facebook
+com.facebook.katana
+# Messenger
+com.facebook.orca
+# Healthy Derma Clinics
+com.hypermorph.healthydermaclinics
+# V Radio
+com.ilv.vradio
+# Curve
+com.imaginecurve.curve.prd
+# Instagram
+com.instagram.android
+# Label (printing app)
+com.jancsinn.label
+# Fuel GR (fuel prices)
+com.jimdem.fuelgr
+# Kraken (crypto exchange)
+com.kraken.invest.app
+# Lidl Plus
+com.lidl.eci.lidlplus
+# LinkedIn
+com.linkedin.android
+# MarineTraffic
+com.marinetraffic.android
+# Microsoft Office
+com.microsoft.office.officehubrow
+# Outlook
+com.microsoft.office.outlook
+# OneDrive
+com.microsoft.skydrive
+# More.com
+com.more.morecom
+# Skroutz
+com.niobiumlabs.android.apps.skroutz
+# NordVPN
+com.nordvpn.android
+# OANDA Currency Converter
+com.oanda.currencyconverter
+# ChatGPT
+com.openai.chatgpt
+# PayPal
+com.paypal.android.p2pmobile
+# Revolut
+com.revolut.revolut
+# Ryanair
+com.ryanair.cheapflights
+# Shazam
+com.shazam.android
+# Simple Gallery Pro
+com.simplemobiletools.gallery.pro
+# Snappi
+com.snappibank.snappiapp
+# Sonos
+com.sonos.acr2
+# SoundCloud
+com.soundcloud.android
+# Spotify
+com.spotify.music
+# SwiftKey
+com.touchtype.swiftkey
+# TP-Link Tapo/IoT
+com.tplink.iot
+# Uber
+com.ubercab
+# Eon (carrier)
+com.ug.eon.android
+# e-food
+com.venturegeeks.efood
+# Viber
+com.viber.voip
+# WhatsApp
+com.whatsapp
+# Wizz Air
+com.wizzair.WizzAirApp
+# Wolt
+com.wolt.android
+# Bitwarden (password manager)
+com.x8bit.bitwarden
+# Xiaomi Home
+com.xiaomi.smarthome
+# Autodoc
+de.autodoc.gmbh
+# Vinted
+fr.vinted
+# ACS Courier
+gr.acscourier.app
+# BOX NOW
+gr.boxnow.customer
+# Cosmote (carrier)
+gr.cosmote.box
+# DEI (power corp)
+gr.dei.deimobile
+# Greek e-shop
+gr.invoke.eshop.gr
+# Vendora
+gr.vendora.app
+# Wind (carrier)
+gr.wind.mywind
+# BuBi (Budapest bike-share)
+hu.bkk.bubi
+# BKK FUTAR (Budapest transit)
+hu.webvalto.bkkfutar
+# Resident Advisor
+net.residentadvisor.raguide
+# Skyscanner
+net.skyscanner.android.main
+# Net Analyzer Lite
+net.techet.netanalyzerlite.an
+# Zedge
+net.zedge.android
+# LocalSend
+org.localsend.localsend_app
+# Telegram Plus
+org.telegram.plus
+# Speedtest
+org.zwanoo.android.speedtest
+# Greek FM radio
+radio.greece.free.fm
+# Sensor Test
+ru.andr7e.sensortest
+# Beat (taxi)
+taxi.android.client
+
+# banking and sensitive apps are excluded - DON'T forget to add them manually
+# excluded: com.EurobankEFG (Eurobank), com.ioniangroup (unclear), com.myklarnamobile (Klarna),
+# gr.gov.myhealth, gr.gov.wallet, gr.payzy (Payzy), gr.winbank.mobile.redesign (Winbank), mbanking.NBG (NBG)
