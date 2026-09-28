@@ -289,9 +289,12 @@ What should remain separate is **data restoration**. For banking, payment, gover
 
 This is especially relevant after returning from a custom ROM to locked stock firmware, where the goal is to let security-sensitive apps establish their state cleanly on the restored device.
 
-### If the bootloader was ever unlocked, expect a permanently reduced integrity verdict
+### If the bootloader was ever unlocked, the integrity verdict may stay reduced
 
-Relocking the bootloader and reflashing signed stock firmware restores `ro.boot.flash.locked=1`, `ro.boot.verifiedbootstate=green` and `ro.build.tags=release-keys` — every *software*-visible signal looks clean. It does **not** clear the hardware attestation record that the device's bootloader was unlocked at some point; that appears to be burned in permanently (`ro.boot.warranty_bit`/`iswarrantyvoid` stayed `yes` on the tested device from the very first `fastboot getvar` capture, through every subsequent relock and reflash).
+Relocking the bootloader and reflashing signed stock firmware restores `ro.boot.flash.locked=1`, `ro.boot.verifiedbootstate=green` and `ro.build.tags=release-keys` — every *software*-visible signal looks clean. On the tested device that was not enough to restore the full integrity verdict, and the cause was **not conclusively identified**. `iswarrantyvoid: yes` was reported by `fastboot getvar` throughout, but the device owner reports the phone had passed certification at earlier points *after* its bootloader had already been unlocked once, so a permanent "was unlocked" record is a suspect, not an established explanation. Other candidates that were not ruled out:
+
+- **Build-specific certification.** Only one build (`V1TDS35H.83-20-5-12`) has been checked for integrity while locked. Once that build advanced the fused AVB rollback value, older builds can no longer boot locked at all (see [`relock-bootloader.md`](relock-bootloader.md#check-the-fused-rollback-value-before-you-relock-instead-of-inferring-it)), so the earlier, previously-certified builds cannot be re-tested on that phone.
+- **The phone's attestation keys or server-side state.** Google's remote key provisioning was still issuing the phone fresh attestation keys (a chain ending at Google's "Key Attestation CA1" root), which argues against the keys simply being blocked, but revocation applied later on Google's side was not ruled out.
 
 Practically, this was confirmed on the tested device using the [Play Integrity API Checker](https://play.google.com/store/apps/details?id=gr.nikolasspyr.integritycheck) app (the current replacement for the deprecated SafetyNet checkers like YASNAC — SafetyNet's backend no longer exists):
 
@@ -299,9 +302,9 @@ Practically, this was confirmed on the tested device using the [Play Integrity A
 - `MEETS_DEVICE_INTEGRITY`: **failed**
 - `MEETS_STRONG_INTEGRITY`: **failed**
 
-The Play Store's own "Play Protect certification" status showed "Device is not certified" for the same reason. Neither a factory reset nor a full stock reflash while locked changed this.
+The Play Store's own "Play Protect certification" status showed "Device is not certified" alongside it. None of these changed the result on the tested device: a factory-reset-equivalent wipe, a full stock reflash while locked (`flashfile.xml`), a repair reflash (`servicefile.xml`), and clearing the data of Google Play services, the Google Services Framework and the Play Store.
 
-**This did not stop Revolut from installing and running** on the tested device — many banking/fintech apps only require `MEETS_BASIC_INTEGRITY`, not the device/strong tiers. But this is app-specific and not guaranteed: some banking, payment or government-ID apps do check for `MEETS_DEVICE_INTEGRITY` and will refuse to run, or run in a restricted mode, on a device that fails it — permanently, in this project's case, regardless of anything documented in Part I or Part II. If you've ever unlocked this device's bootloader (including just to test Part IV's custom ROM path), install the integrity checker app first and know your actual verdict before relying on a banking app's full functionality, rather than assuming stock-and-locked is equivalent to never-unlocked.
+**This did not stop Revolut from installing and running** on the tested device — many banking/fintech apps only require `MEETS_BASIC_INTEGRITY`, not the device/strong tiers. But this is app-specific and not guaranteed: some banking, payment or government-ID apps do check for `MEETS_DEVICE_INTEGRITY` and will refuse to run, or run in a restricted mode, on a device that fails it — and on the tested phone nothing documented in Part I or Part II has changed that so far. If you've ever unlocked this device's bootloader (including just to test Part IV's custom ROM path), install the integrity checker app first and know your actual verdict before relying on a banking app's full functionality, rather than assuming stock-and-locked is equivalent to never-unlocked.
 
 ## 11. Package names that no longer exist
 

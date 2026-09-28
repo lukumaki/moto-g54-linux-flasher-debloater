@@ -89,3 +89,57 @@ The actual cause was Android's own **AVB rollback index**, embedded in `vbmeta.i
 3. Reboot. The device should boot normally.
 
 **The practical takeaway:** relock on the newest firmware build you have, not an older one you happen to be testing — even one whose per-component ARB table matches. If you must relock on an older build for some reason, be ready to immediately reflash the newest build while still locked if the first boot fails, rather than assuming a bricked bootloader.
+
+## Check the fused rollback value before you relock, instead of inferring it
+
+The AVB rollback situation above doesn't have to be guessed at. Motorola's bootloader lists the fused security-version values, and each build's `vbmeta.img` states the rollback index it carries, so the two can be compared before anything is locked.
+
+**1. Read the fused values from the bootloader** (read-only; `read_sv` appears in `fastboot oem help`):
+
+```bash
+fastboot oem read_sv
+```
+
+On the tested device this returned:
+
+```text
+Group0 (Secure bootloader) = 0x1
+Group1 (Non-secure subsystem) = 0x0
+Group2 (AVB vbmeta) = 0x23
+Group3 (Recovery) = 0x0
+Group4 (Misc Sub_da) = 0x4
+Group4 (Misc Sub_lk) = 0x1
+Group4 (Misc Sub_tee) = 0x0
+Group4 (Misc Sub_tinysys) = 0x0
+Group5 (Modem) = 0x1
+Group6 (App) = 0x0
+```
+
+The bootloader notes that `0xFFFFFFFF` means the fuse could not be read. The line that matters here is `Group2 (AVB vbmeta)`: `0x23` is 35.
+
+**2. Read the rollback index from the build you intend to run.** It is stored big-endian at byte offset 112 of the AVB header in `vbmeta.img` (and `vbmeta_system.img`), so no Android tooling is needed:
+
+```bash
+python3 - <<'PY'
+import struct
+for name in ("vbmeta.img", "vbmeta_system.img"):
+    header = open(name, "rb").read(128)
+    assert header[:4] == b"AVB0", f"{name} is not an AVB image"
+    index = struct.unpack(">Q", header[112:120])[0]
+    print(f"{name}: rollback_index={index} (0x{index:x})")
+PY
+```
+
+(`avbtool info_image --image vbmeta.img` reports the same number as "Rollback Index" if you have it.)
+
+**3. Compare.** A build can boot with the bootloader locked only if its rollback index is **greater than or equal to** the fused `Group2` value. On the tested device:
+
+| Item | Rollback index |
+|---|---|
+| Fused value (`Group2 (AVB vbmeta)`) | 35 (`0x23`) |
+| `V1TDS35H.83-20-5-12` (`vbmeta.img` and `vbmeta_system.img`) | 35 |
+| `V1TDS35H.83-20-5-6` (`vbmeta.img` and `vbmeta_system.img`) | 25 |
+
+`-12` matches the fused value and boots locked. `-6` is below it, which is exactly the build that produced "No valid operating system could be found" after `fastboot oem lock`. The fused value only ever goes up, so once a build with a higher index has run, every build below that index can no longer be used with a locked bootloader on that phone. Check this before flashing an older build if you ever intend to relock afterwards.
+
+These numbers were compared, not traced to their source: the bootloader labels `Group2` as the AVB vbmeta value, and it equals the newest build's rollback index exactly, which is consistent with them being the same counter, but that link is inferred from the match.
