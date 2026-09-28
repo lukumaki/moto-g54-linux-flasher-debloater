@@ -104,6 +104,10 @@ STAGE4=(
     com.google.android.apps.photosgo
     all.documentreader.filereader.office.viewer
     com.documentreader.free.viewer.all
+    com.fugo.wow
+    com.pixel.art.coloring.color.number
+    com.tripledot.solitaire
+    pdf.pdfreader.viewer.editor.free
 )
 
 # Stage 5: additional stock components identified from a community debloat

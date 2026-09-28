@@ -90,6 +90,8 @@ One specific non-`Success` result is benign and worth calling out on its own: `F
 
 `Failure [not installed for 0]` has a second, distinct cause that reads identically: the package was never installed at all, not previously removed. On a Settings-sign-in flash (see [`reference/README.md`](../reference/README.md#signing-into-google-via-settings-instead-of-the-setup-wizard-fewer-auto-installed-apps)), a live run of `debloat-cancunf.sh`'s core Stage 1 reported `com.google.android.apps.docs.editors.{sheets,docs,slides}`, `com.google.android.apps.magazines`, `com.google.android.apps.fitness` and `com.google.android.apps.podcasts` as `ALREADY REMOVED`, when in fact none of them had ever been installed on that device in the first place. Android's package manager does not distinguish the two cases in its response, so the script can't either — but the practical result is identical either way: there is nothing to remove, and nothing to inspect.
 
+The reverse case was observed on a later run: after a full reset and a *setup-wizard* Google sign-in, those same six apps were installed, and Stage 1 removed them normally (`OK`, not `ALREADY REMOVED`). That run started from 423 packages and finished with 65 removed, 0 already-removed, 0 failed and 3 Stage 4 packages skipped as not present (358 packages afterwards).
+
 ## 5. First removal batch
 
 The first conservative batch removed unwanted Google applications and obvious partner/recommendation components:
@@ -380,10 +382,21 @@ com.documentreader.free.viewer.all
 
 Both match the same generic, spam-adjacent naming pattern as `ringtonesforandroidphonefree...` above and `com.taboola.mip` (section 5) — silently installed, not part of the firmware, not something the device owner asked for.
 
+Four more appeared after a full reset followed by a setup-wizard Google sign-in, and were still on the phone after `debloat-cancunf.sh` had finished because they were not yet in this list — two casual games, a solitaire game and a PDF reader/editor, all from the same free, ad-supported family as the games and document readers above:
+
+```text
+com.fugo.wow
+com.pixel.art.coloring.color.number
+com.tripledot.solitaire
+pdf.pdfreader.viewer.editor.free
+```
+
+They were judged the same way (absent from the stock baseline, not installed by the device owner) and removed by hand with `pm uninstall --user 0`, then added to Stage 4. What `com.fugo.wow` is exactly was not investigated; it is included on the pattern and on its absence from the baseline, like `com.motorola.lmsaappclient` above. The fact that the set differs on every fresh sign-in is the reason this stage checks presence first and why a newly seen package of the same kind is worth adding here rather than assuming the list is complete.
+
 **Unlike sections 5, 7 and 8, this batch is not guaranteed present on every device.** Whether these specific packages appear depends on the signed-in Google account's own app/restore history and/or Motorola's region-specific bundled-app promotions, not the firmware itself. Check what's actually present before removing anything:
 
 ```bash
-adb shell pm list packages | grep -E 'ball\.sort\.puzzle|block\.juggle|candycrushsaga|nebula\.mahjongtile|vitastudio\.mahjong|oakever\.tiletrip|oakever\.arrows|ringtonesforandroidphonefree|motorola\.lmsaappclient|apps\.bard|apps\.photosgo|documentreader'
+adb shell pm list packages | grep -E 'ball\.sort\.puzzle|block\.juggle|candycrushsaga|nebula\.mahjongtile|vitastudio\.mahjong|oakever\.tiletrip|oakever\.arrows|ringtonesforandroidphonefree|motorola\.lmsaappclient|apps\.bard|apps\.photosgo|documentreader|fugo\.wow|pixel\.art\.coloring|tripledot\.solitaire|pdfreader'
 ```
 
 Remove only what's confirmed present:
@@ -402,6 +415,10 @@ adb shell pm uninstall --user 0 com.google.android.apps.bard
 adb shell pm uninstall --user 0 com.google.android.apps.photosgo
 adb shell pm uninstall --user 0 all.documentreader.filereader.office.viewer
 adb shell pm uninstall --user 0 com.documentreader.free.viewer.all
+adb shell pm uninstall --user 0 com.fugo.wow
+adb shell pm uninstall --user 0 com.pixel.art.coloring.color.number
+adb shell pm uninstall --user 0 com.tripledot.solitaire
+adb shell pm uninstall --user 0 pdf.pdfreader.viewer.editor.free
 ```
 
 `debloat-cancunf.sh` runs this as its own separate, clearly-labeled Stage 4 (see [section 15](#15-automated-script)) — kept apart from the core 26-package removal precisely because it is account/region-specific rather than guaranteed stock, and the script checks each package's presence before attempting to remove it.
