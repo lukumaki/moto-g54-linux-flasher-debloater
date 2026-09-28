@@ -60,6 +60,21 @@ On the tested device, the status-bar network indicator visibly dropped from 5G/L
 
 A call that only reaches `ALERTING` proves the network accepted setup and rang the other end; it does not prove two-way audio worked. Get the other party to actually answer at least once and watch for `GET_CURRENT_CALLS {[id=1,ACTIVE,...` in the log before concluding calling works. On the tested device this was confirmed on both a custom ROM and stock, both directions (an outgoing call reaching `ACTIVE`, and an incoming call being answered), and it held up again after a full conservative debloat (see [`docs/debloat.md`](debloat.md#confirmed-a-full-run-including-stage-5-does-not-break-calls)) — including removal of `com.motorola.attvowifi`, whose name suggests VoWiFi involvement but which had no observed effect on calling.
 
+## An unexplained observation: which Hungarian network the SIM registers on
+
+Two things the device owner noticed that the diagnostics above did not measure, recorded here in case they turn out to matter:
+
+- **From the point where the calling problem went away** (during an earlier reflash cycle, before the radio-log captures in this document), the SIM registered on **Telekom HU** instead of Yettel HU. The home operator's welcome text on entering Hungary also pointed at Telekom HU.
+- **Manually selecting** Telekom HU or Vodafone/One HU, earlier on, failed with errors. The exact error text was not recorded.
+
+For comparison, what the captures in this document show: during the answered test calls on stock `V1TDS35H.83-20-5-12`, the radio log and `dumpsys` reported registration on **Yettel HU** (MCC-MNC 216-01) with automatic network selection, and calls worked there over CSFB. So the Telekom observation and the logged Yettel calls come from different times; they were not compared side by side.
+
+**Why it might matter (a hypothesis, not tested):** home operators typically steer roaming SIMs towards preferred visited networks (which is what a welcome text does), and VoLTE/IMS roaming is often only provisioned with some of those partners. If IMS registers only on the preferred partner, IMS never registering on a different visited network would be unsurprising, and it would fit the pattern seen here: `carrier_config` permits IMS while roaming, yet nothing registers. It could also explain why the same SIM behaved differently on another phone in the same city, if that phone had attached to the preferred network. Neither point was established.
+
+**What would test it:** note the registered PLMN (`getprop gsm.operator.numeric`) whenever calling behaviour changes (Hungary: `21601` Yettel, `21630` Telekom, `21670` Vodafone/One); capture the radio log (Step 2) during a failed manual network selection to get the actual reject cause; and check the MMTEL capabilities (Step 1's `dumpsys phone` output) while the phone is registered on Telekom HU.
+
+**A note on operator names:** in every capture here the SIM reported its operator as `NOVA` (MCC-MNC 202-10, matched by `carrier_config` on that MCC-MNC, not on the display name). Operator names are display strings; registration and IMS provisioning key off the MCC-MNC, so a different trading or legal name for the same operator is not expected to affect any of this. The name "Telestet" was raised by the owner but does not appear in any capture from this project, so where it came from is unknown.
+
 ## Practical takeaway
 
 If VoLTE/IMS never registers while roaming but `imsvoice.carrier_volte_roaming_available_bool` says it should, don't assume calling is broken — check whether CSFB is quietly doing the job instead. The network indicator dropping to `E`/`3G` during a call attempt, followed by a genuinely answered call in the radio log, is the actual test that matters, not the IMS registration state on its own.
