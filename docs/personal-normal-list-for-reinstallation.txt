@@ -24,6 +24,10 @@ com.ertflix.app
 com.facebook.katana
 # Messenger
 com.facebook.orca
+# Google Keep
+com.google.android.keep
+# Huawei Health
+com.huawei.health
 # Healthy Derma Clinics
 com.hypermorph.healthydermaclinics
 # V Radio
@@ -58,6 +62,8 @@ com.niobiumlabs.android.apps.skroutz
 com.nordvpn.android
 # OANDA Currency Converter
 com.oanda.currencyconverter
+# Simon's Burger
+com.okeoke.simonsburger
 # ChatGPT
 com.openai.chatgpt
 # PayPal
@@ -78,10 +84,14 @@ com.sonos.acr2
 com.soundcloud.android
 # Spotify
 com.spotify.music
+# Todoist
+com.todoist
 # SwiftKey
 com.touchtype.swiftkey
 # TP-Link Tapo/IoT
 com.tplink.iot
+# Tripadvisor
+com.tripadvisor.tripadvisor
 # Uber
 com.ubercab
 # Eon (carrier)
@@ -122,6 +132,8 @@ gr.wind.mywind
 hu.bkk.bubi
 # BKK FUTAR (Budapest transit)
 hu.webvalto.bkkfutar
+# Aunio
+io.alteg.aunio.app
 # Resident Advisor
 net.residentadvisor.raguide
 # Skyscanner
@@ -130,6 +142,8 @@ net.skyscanner.android.main
 net.techet.netanalyzerlite.an
 # Zedge
 net.zedge.android
+# FX File Explorer
+nextapp.fx
 # LocalSend
 org.localsend.localsend_app
 # Telegram Plus
